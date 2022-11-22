@@ -1,0 +1,127 @@
+name: Windows
+
+on:
+  push:
+  pull_request:
+    branches: [ master ]
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  INSTALL_PREFIX: _install
+  PROJECT_NAME:   udpcap
+  VS_TOOLSET:     v140
+  VS_NAME:        vs2015
+
+jobs:
+  build-windows:
+
+    strategy:
+      matrix:
+        library_type: [static, shared]
+        build_arch:   [x64, win32]
+
+    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
+    # You can convert this to a matrix build if you need cross-platform coverage.
+    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+    runs-on: windows-2019
+
+    steps:
+
+    - name: Set Variables
+      run: |
+        if ( '${{ matrix.library_type }}' -eq 'static' )
+        {
+          echo "build_shared_libs=OFF"  >> "$Env:GITHUB_ENV"
+          echo "package_postfix=static" >> "$Env:GITHUB_ENV"
+        }
+        else
+        {
+          echo "build_shared_libs=ON"   >> "$Env:GITHUB_ENV"
+          echo "package_postfix=shared" >> "$Env:GITHUB_ENV"
+        }
+
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        submodules:  'true'
+        fetch-depth: 0
+
+    ############################################
+    # Test-compile the project
+    ############################################
+
+    - name: Configure CMake
+      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+      shell: cmd
+      run: |
+           cmake -B ${{github.workspace}}/_build ^
+                 -G "Visual Studio 16 2019" ^
+                 -A ${{ matrix.build_arch }} ^
+                 -T ${{ env.VS_TOOLSET }} ^
+                 -DCMAKE_INSTALL_PREFIX=${{env.INSTALL_PREFIX}} ^
+                 -DBUILD_SHARED_LIBS=${{ env.build_shared_libs }}
+
+    - name: Build (Release)
+      shell: cmd
+      run: |
+           cmake --build ${{github.workspace}}/_build --config Release --parallel
+           cmake --build ${{github.workspace}}/_build --config Release --target INSTALL
+      
+    - name: Build (Debug)
+      shell: cmd
+      run: |
+           cmake --build ${{github.workspace}}/_build --config Debug --parallel
+           cmake --build ${{github.workspace}}/_build --config Debug --target INSTALL
+           
+    - name: Read Project Version from CMakeCache
+      run: |
+        $cmake_project_version_line = cat ${{github.workspace}}/_build/CMakeCache.txt | Select-String -Pattern ^CMAKE_PROJECT_VERSION:
+        $cmake_project_version = $cmake_project_version_line.Line.split("=")[1]
+        echo "CMAKE_PROJECT_VERSION=$cmake_project_version"  >> "$Env:GITHUB_ENV"
+
+    - name: Upload binaries
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ env.PROJECT_NAME }}-${{ env.CMAKE_PROJECT_VERSION }}-windows-${{ matrix.build_arch }}-${{ env.VS_NAME }}-${{ matrix.library_type }}
+        path: ${{github.workspace}}/${{env.INSTALL_PREFIX}}
+
+    ############################################
+    # Test if our binary can be linked against
+    ############################################
+
+    - name: CMake integration test
+      shell: cmd
+      run: |
+           cmake -B ${{github.workspace}}/samples/integration_test/_build ^
+                 -A ${{ matrix.build_arch }} ^
+                 -DCMAKE_PREFIX_PATH=${{github.workspace}}/${{env.INSTALL_PREFIX}}
+      working-directory: ${{ github.workspace }}/samples/integration_test
+
+    - name: Compile integration test (Release)
+      shell: cmd
+      run: cmake --build ${{github.workspace}}/samples/integration_test/_build --config Release
+      working-directory: ${{ github.workspace }}/samples/integration_test
+
+    - name: Run integration test (Release)
+      run: |
+           if ( '${{ matrix.library_type }}' -eq 'shared' )
+           {
+             $Env:Path = '${{github.workspace}}/${{env.INSTALL_PREFIX}}/bin;' + $Env:Path
+           }
+           .\integration_test.exe
+      working-directory: ${{ github.workspace }}/samples/integration_test/_build/Release
+
+    - name: Compile integration test (Debug)
+      shell: cmd
+      run: cmake --build ${{github.workspace}}/samples/integration_test/_build --config Debug
+      working-directory: ${{ github.workspace }}/samples/integration_test
+
+    - name: Run integration test (Debug)
+      run: |
+           if ( '${{ matrix.library_type }}' -eq 'shared' )
+           {
+             $Env:Path = '${{github.workspace}}/${{env.INSTALL_PREFIX}}/bin;' + $Env:Path
+           }
+           .\integration_test.exe
+      working-directory: ${{ github.workspace }}/samples/integration_test/_build/Debug
