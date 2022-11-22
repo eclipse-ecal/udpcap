@@ -110,6 +110,18 @@ You will need git-for-windows, Visual Studio 2015 or newer and CMake 3.13 or new
 
     For seeing some output from the samples, you will obviously have to always execute both the sender snd udpcap_reciever sample.
 
+## CMake Options
+
+You can set the following CMake Options to control how Udpcap is supposed to build:
+
+**Option**                                     | **Type** | **Default** | **Explanation**                                                                                                 |
+|----------------------------------------------|----------|-------------|-----------------------------------------------------------------------------------------------------------------|
+| `UDPCAP_BUILD_SAMPLES`                       | `BOOL`   | `ON`        | Build the Udpcap (and asio) samples for sending and receiving dummy data                                        |
+| `UDPCAP_THIRDPARTY_ENABLED`                  | `BOOL`   | `ON`        | Activate / Deactivate the usage of integrated dependencies.                                                     |
+| `UDPCAP_THIRDPARTY_USE_BUILTIN_NPCAP`        | `BOOL`   | `ON`        | Fetch and build against an integrated Version of the npcap SDK. <br>Only available if `UDPCAP_THIRDPARTY_ENABLED=ON` |
+| `UDPCAP_THIRDPARTY_USE_BUILTIN_PCAPPLUSPLUS` | `BOOL`   | `ON`        | Fetch and build against an integrated Version of Pcap++. <br>_Only available if `UDPCAP_THIRDPARTY_ENABLED=ON`_        |
+| `UDPCAP_THIRDPARTY_USE_BUILTIN_ASIO`         | `BOOL`   | `ON`        | Fetch and build against an integrated Version of asio. <br>Only available if `UDPCAP_THIRDPARTY_ENABLED=ON`          |
+| `CMAKE_BUILD_SHARED_LIBS`                    | `BOOL`   |             | Not a udpcap option, but use this to control whether you want to have a static or shared library                |
 # How to integrate Udpcap in your project
 
 **Integrate as binaries**:
@@ -138,4 +150,18 @@ You will need git-for-windows, Visual Studio 2015 or newer and CMake 3.13 or new
 
 1. Make the udpcap source available either way. You can e.g. download it manually, use a git submodule or use CMake FetchContent.
 
-2. TBD :)
+2. Add the following to your `CMakeLists.txt`:
+
+    ```cmake
+    # You will probably not need the samples, so turn them off.
+    set(UDPCAP_BUILD_SAMPLES OFF)
+
+    # Add the top-level directory as cmake subdirectory
+    add_subdirectory("path_to_udpcap")
+
+    # Add the dummy Findudpcap.cmake do the module path to make
+    # find_package(udpcap) succeed.
+    list(APPEND CMAKE_MODULE_PATH "path_to_udpcap/thirdparty/udpcap/Modules")
+    ```
+
+3. Now you can link against `udpcap::udpcap`
