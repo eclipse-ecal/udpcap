@@ -70,7 +70,7 @@ int main()
 
   for (;;)
   {
-    // Blocking receive a datagram from the Socket. This is a blocking
+    // Receive a datagram from the Socket. This is a blocking
     // operation. The operation will return once a datagram has been received,
     // the socket was closed by another thread or an error occured.
     std::vector<char> received_datagram = socket.receiveDatagram();
