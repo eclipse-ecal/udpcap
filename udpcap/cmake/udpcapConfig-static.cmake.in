@@ -2,5 +2,5 @@
 
 INCLUDE("@PACKAGE_UDPCAP_INSTALL_CMAKE_DIR@/udpcapTargets.cmake")
 
-find_package(Npcap REQUIRED)
-find_package(PcapPlusPlus REQUIRED)
+find_package(npcap REQUIRED)
+find_package(pcapplusplus REQUIRED)
