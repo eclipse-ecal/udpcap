@@ -27,8 +27,8 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
-find_package(Npcap        REQUIRED)
-find_package(PcapPlusPlus REQUIRED)
+find_package(npcap        REQUIRED)
+find_package(pcapplusplus REQUIRED)
 find_package(asio         REQUIRED)
 
 # Include GenerateExportHeader that will create export macros for us
@@ -71,8 +71,8 @@ add_library (udpcap::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
 target_link_libraries(${PROJECT_NAME}
     PRIVATE #TODO: This used to be private
-        Npcap::Npcap
-        PcapPlusPlus::PcapPlusPlus
+        npcap::npcap
+        pcapplusplus::pcapplusplus
         $<$<BOOL:${WIN32}>:ws2_32>
         $<$<BOOL:${WIN32}>:wsock32>
 
