@@ -121,7 +121,7 @@ You can set the following CMake Options to control how Udpcap is supposed to bui
 | `UDPCAP_THIRDPARTY_USE_BUILTIN_NPCAP`        | `BOOL`   | `ON`        | Fetch and build against an integrated Version of the npcap SDK. <br>Only available if `UDPCAP_THIRDPARTY_ENABLED=ON` |
 | `UDPCAP_THIRDPARTY_USE_BUILTIN_PCAPPLUSPLUS` | `BOOL`   | `ON`        | Fetch and build against an integrated Version of Pcap++. <br>_Only available if `UDPCAP_THIRDPARTY_ENABLED=ON`_        |
 | `UDPCAP_THIRDPARTY_USE_BUILTIN_ASIO`         | `BOOL`   | `ON`        | Fetch and build against an integrated Version of asio. <br>Only available if `UDPCAP_THIRDPARTY_ENABLED=ON`          |
-| `CMAKE_BUILD_SHARED_LIBS`                    | `BOOL`   |             | Not a udpcap option, but use this to control whether you want to have a static or shared library                |
+| `BUILD_SHARED_LIBS`                          | `BOOL`   |             | Not a udpcap option, but use this to control whether you want to have a static or shared library                |
 # How to integrate Udpcap in your project
 
 **Integrate as binaries**:
