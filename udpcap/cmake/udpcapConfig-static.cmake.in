@@ -1,6 +1,7 @@
 @PACKAGE_INIT@
 
-INCLUDE("@PACKAGE_UDPCAP_INSTALL_CMAKE_DIR@/udpcapTargets.cmake")
+include(CMakeFindDependencyMacro)
+find_dependency(npcap)
+find_dependency(pcapplusplus)
 
-find_package(npcap REQUIRED)
-find_package(pcapplusplus REQUIRED)
+INCLUDE("${CMAKE_CURRENT_LIST_DIR}/udpcapTargets.cmake")
