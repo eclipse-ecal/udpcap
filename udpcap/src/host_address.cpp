@@ -23,6 +23,8 @@
 #define NOMINMAX
 #include <Ws2tcpip.h>
 
+#include <array>
+
 namespace Udpcap
 {
   ////////////////////////////////
@@ -70,7 +72,7 @@ namespace Udpcap
   {
     if (valid_)
     {
-      uint32_t lower_byte = (ipv4_ & 0x000000FF);
+      const uint32_t lower_byte = (ipv4_ & 0x000000FF);
       return (lower_byte >= 224) && (lower_byte <= 239);
     }
     else
@@ -83,9 +85,9 @@ namespace Udpcap
   {
     if (valid_)
     {
-      char buffer[16];
-      inet_ntop(AF_INET, (void*)(&ipv4_), buffer, 16);
-      return std::string(buffer);
+      std::array<char, 16> buffer{};
+      inet_ntop(AF_INET, (void*)(&ipv4_), buffer.data(), 16);
+      return std::string(buffer.data());
     }
     else
     {

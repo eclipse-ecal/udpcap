@@ -32,8 +32,8 @@ int main()
 
   asio::io_service io_service;
 
-  asio::ip::udp::endpoint endpoint(asio::ip::make_address("127.0.0.1"), 14000);
-  asio::ip::udp::socket   upd_socket(io_service, endpoint.protocol());
+  const asio::ip::udp::endpoint endpoint(asio::ip::make_address("127.0.0.1"), 14000);
+  asio::ip::udp::socket         upd_socket(io_service, endpoint.protocol());
 
   int counter = 0;
   for(;;)

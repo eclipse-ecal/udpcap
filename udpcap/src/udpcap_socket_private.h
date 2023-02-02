@@ -169,10 +169,10 @@ namespace Udpcap
 
     // Callbacks
     static void PacketHandlerVector(unsigned char* param, const struct pcap_pkthdr* header, const unsigned char* pkt_data);
-    static void FillCallbackArgsVector(CallbackArgsVector* callback_args, pcpp::IPv4Layer* ip_layer, pcpp::UdpLayer* udp_layer);
+    static void FillCallbackArgsVector(CallbackArgsVector* callback_args, const pcpp::IPv4Layer* ip_layer, const pcpp::UdpLayer* udp_layer);
 
     static void PacketHandlerRawPtr(unsigned char* param, const struct pcap_pkthdr* header, const unsigned char* pkt_data);
-    static void FillCallbackArgsRawPtr(CallbackArgsRawPtr* callback_args, pcpp::IPv4Layer* ip_layer, pcpp::UdpLayer* udp_layer);
+    static void FillCallbackArgsRawPtr(CallbackArgsRawPtr* callback_args, const pcpp::IPv4Layer* ip_layer, const pcpp::UdpLayer* udp_layer);
 
   private:
     bool        is_valid_;                                                      /**< If the socket is valid and ready to use (e.g. npcap was initialized successfully) */

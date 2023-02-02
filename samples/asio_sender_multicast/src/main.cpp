@@ -32,12 +32,12 @@ int main()
 
   asio::io_service io_service;
 
-  asio::ip::udp::endpoint endpoint(asio::ip::make_address("239.0.0.1"), 14000);
-  asio::ip::udp::socket   upd_socket(io_service, endpoint.protocol());
+  const asio::ip::udp::endpoint endpoint(asio::ip::make_address("239.0.0.1"), 14000);
+  asio::ip::udp::socket         upd_socket(io_service, endpoint.protocol());
 
   // set multicast packet TTL
   {
-    asio::ip::multicast::hops ttl(2);
+    const asio::ip::multicast::hops ttl(2);
     asio::error_code ec;
     upd_socket.set_option(ttl, ec);
     if (ec)
@@ -49,9 +49,9 @@ int main()
 
   // set loopback option
   {
-    asio::ip::multicast::enable_loopback loopback(true);
+    const asio::ip::multicast::enable_loopback loopback(true);
     asio::error_code ec;
-    upd_socket.set_option(loopback);
+    upd_socket.set_option(loopback, ec);
     if (ec)
     {
       std::cerr << "ERROR: Error setting loopback option: " << ec.message() << std::endl;
