@@ -76,7 +76,8 @@ namespace Udpcap
     UDPCAP_EXPORT UdpcapSocket();
     UDPCAP_EXPORT ~UdpcapSocket();
 
-    UDPCAP_EXPORT UdpcapSocket(UdpcapSocket const&) = delete;
+    // Move
+    UDPCAP_EXPORT UdpcapSocket(UdpcapSocket const&)             = delete;
     UDPCAP_EXPORT UdpcapSocket& operator= (UdpcapSocket const&) = delete;
 
     /**

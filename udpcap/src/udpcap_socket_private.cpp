@@ -48,11 +48,11 @@ namespace Udpcap
   {
   }
 
-  UdpcapSocketPrivate::~UdpcapSocketPrivate()
-  {
-    // @todo: reinvestigate why it crashes on close. (Maybe check if i have implemented copy / move constructors properly)
-    //close();
-  }
+  //UdpcapSocketPrivate::~UdpcapSocketPrivate()
+  //{
+  //  // @todo: reinvestigate why it crashes on close. (Maybe check if i have implemented copy / move constructors properly)
+  //  //close();
+  //}
 
   bool UdpcapSocketPrivate::isValid() const
   {

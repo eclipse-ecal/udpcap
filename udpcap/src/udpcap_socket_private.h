@@ -116,10 +116,15 @@ namespace Udpcap
     static const int MAX_PACKET_SIZE = 65536; // Npcap Doc: A snapshot length of 65535 should be sufficient, on most if not all networks, to capture all the data available from the packet. 
 
     UdpcapSocketPrivate();
-    ~UdpcapSocketPrivate();
+    ~UdpcapSocketPrivate() = default;
 
-    UdpcapSocketPrivate(UdpcapSocketPrivate const&) = delete;
+    // Copy
+    UdpcapSocketPrivate(UdpcapSocketPrivate const&)             = delete;
     UdpcapSocketPrivate& operator= (UdpcapSocketPrivate const&) = delete;
+
+    // Move
+    UdpcapSocketPrivate& operator=(UdpcapSocketPrivate&&)      = default;
+    UdpcapSocketPrivate(UdpcapSocketPrivate&&)                 = default;
 
     bool isValid() const;
 

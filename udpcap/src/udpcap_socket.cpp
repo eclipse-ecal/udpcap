@@ -28,7 +28,7 @@ namespace Udpcap
   {}
 
   UdpcapSocket::~UdpcapSocket()
-                                                                                                                     {}
+  {}
 
   bool              UdpcapSocket::isValid                    () const                                                { return udpcap_socket_private_->isValid(); }
 
