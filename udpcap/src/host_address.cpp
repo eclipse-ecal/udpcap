@@ -48,9 +48,6 @@ namespace Udpcap
     , ipv4_(address)
   {}
 
-  HostAddress::~HostAddress()
-  {}
-
   bool HostAddress::isValid() const
   {
     return valid_;

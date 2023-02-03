@@ -59,8 +59,6 @@ namespace Udpcap
     /** @brief Constructs a HostAddress from a 32bit integer in host byte order. */
     UDPCAP_EXPORT HostAddress(const uint32_t address);
 
-    UDPCAP_EXPORT ~HostAddress();
-
     /** @brief Checks if the Host Address is valid.
      * Invalid HostAddresses are created when providing a wrong IPv4 string,
      * using the empty default constructor or the HostAddress::Invalid()

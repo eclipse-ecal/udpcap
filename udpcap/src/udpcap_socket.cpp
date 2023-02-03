@@ -27,8 +27,11 @@ namespace Udpcap
     : udpcap_socket_private_(std::make_unique<Udpcap::UdpcapSocketPrivate>())
   {}
 
-  UdpcapSocket::~UdpcapSocket()
-  {}
+  UdpcapSocket::~UdpcapSocket() = default;
+
+  // Move
+  UdpcapSocket& UdpcapSocket::operator=(UdpcapSocket&&)  noexcept = default;
+  UdpcapSocket::UdpcapSocket(UdpcapSocket&&)             noexcept = default; 
 
   bool              UdpcapSocket::isValid                    () const                                                { return udpcap_socket_private_->isValid(); }
 
