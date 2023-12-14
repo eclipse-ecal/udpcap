@@ -76,8 +76,13 @@ namespace Udpcap
     UDPCAP_EXPORT UdpcapSocket();
     UDPCAP_EXPORT ~UdpcapSocket();
 
-    UDPCAP_EXPORT UdpcapSocket(UdpcapSocket const&) = delete;
-    UDPCAP_EXPORT UdpcapSocket& operator= (UdpcapSocket const&) = delete;
+    // Copy
+    UdpcapSocket(UdpcapSocket const&)             = delete;
+    UdpcapSocket& operator= (UdpcapSocket const&) = delete;
+
+    // Move
+    UDPCAP_EXPORT UdpcapSocket& operator=(UdpcapSocket&&) noexcept;
+    UDPCAP_EXPORT UdpcapSocket(UdpcapSocket&&) noexcept;
 
     /**
      * @brief Checks whether the socket is valid (i.e. npcap has been intialized successfully)

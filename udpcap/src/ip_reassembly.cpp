@@ -83,11 +83,11 @@ namespace Udpcap
   /// Helper functions
   /////////////////////////////////////////
 
-  std::unique_ptr<pcpp::IPReassembly::PacketKey> IpReassembly::getPacketKey(pcpp::Packet* packet)
+  std::unique_ptr<pcpp::IPReassembly::PacketKey> IpReassembly::getPacketKey(const pcpp::Packet* packet)
   {
     {
       pcpp::IPv4Layer* ipv4_layer  = packet->getLayerOfType<pcpp::IPv4Layer>();
-      if (ipv4_layer)
+      if (ipv4_layer != nullptr)
       {
         return std::make_unique<pcpp::IPReassembly::IPv4PacketKey>(_byteswap_ushort(ipv4_layer->getIPv4Header()->ipId), ipv4_layer->getSrcIPv4Address(), ipv4_layer->getDstIPv4Address());
       }
@@ -95,10 +95,10 @@ namespace Udpcap
     
     {
       pcpp::IPv6Layer* ipv6_layer  = packet->getLayerOfType<pcpp::IPv6Layer>();
-      if (ipv6_layer)
+      if (ipv6_layer != nullptr)
       {
-        auto frag_header = ipv6_layer->getExtensionOfType<pcpp::IPv6FragmentationHeader>();
-        if (frag_header)
+        auto* frag_header = ipv6_layer->getExtensionOfType<pcpp::IPv6FragmentationHeader>();
+        if (frag_header != nullptr)
           return std::make_unique<pcpp::IPReassembly::IPv6PacketKey>(ntohl(frag_header->getFragHeader()->id), ipv6_layer->getSrcIPv6Address(), ipv6_layer->getDstIPv6Address());
         else
           return nullptr;
@@ -149,7 +149,8 @@ namespace Udpcap
     }
     else
     {
-      timestamp_map_.emplace(packet_key->getHashValue(), std::make_pair(std::move(packet_key), now));
+      auto hash_value = packet_key->getHashValue();
+      timestamp_map_.emplace(hash_value, std::make_pair(std::move(packet_key), now));
     }
   }
 

@@ -138,7 +138,7 @@ namespace Udpcap
   /////////////////////////////////////////
   private:
 
-	std::unique_ptr<pcpp::IPReassembly::PacketKey> getPacketKey(pcpp::Packet* packet);
+	static std::unique_ptr<pcpp::IPReassembly::PacketKey> getPacketKey(const pcpp::Packet* packet);
 
 	void removeOldPackages();
 	void removePackageFromTimestampMap(std::unique_ptr<pcpp::IPReassembly::PacketKey> packet_key);

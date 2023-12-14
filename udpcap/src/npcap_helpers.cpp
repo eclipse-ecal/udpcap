@@ -25,6 +25,7 @@
 #include <iostream>
 #include <algorithm>
 #include <sstream>
+#include <array>
 
 #include <locale>
 #include <codecvt>
@@ -39,32 +40,32 @@ namespace Udpcap
 {
   namespace // Private Namespace
   {
-    static std::mutex npcap_mutex;
-    static bool is_initialized(false);
+    std::mutex npcap_mutex;
+    bool is_initialized(false);
 
-    static std::string loopback_device_uuid_string;
-    static bool loopback_device_name_initialized(false);
+    std::string loopback_device_uuid_string;
+    bool loopback_device_name_initialized(false);
 
-    static std::string human_readible_error_("Npcap has not been initialized, yet");
+    std::string human_readible_error_("Npcap has not been initialized, yet");
 
     bool LoadNpcapDlls()
     {
-      _TCHAR npcap_dir[512];
-      UINT len;
-      len = GetSystemDirectory(npcap_dir, 480);
-      if (!len) {
+      std::array<_TCHAR, 512> npcap_dir{};
+      UINT len(0);
+      len = GetSystemDirectory(npcap_dir.data(), 480);
+      if (len == 0) {
         human_readible_error_ = "Error in GetSystemDirectory";
         fprintf(stderr, "Error in GetSystemDirectory: %x", GetLastError());
         return false;
       }
-      _tcscat_s(npcap_dir, 512, _T("\\Npcap"));
-      if (SetDllDirectory(npcap_dir) == 0) {
+      _tcscat_s(npcap_dir.data(), 512, _T("\\Npcap"));
+      if (SetDllDirectory(npcap_dir.data()) == 0) {
         human_readible_error_ = "Error in SetDllDirectory";
         fprintf(stderr, "Error in SetDllDirectory: %x", GetLastError());
         return false;
       }
 
-      if(LoadLibrary("wpcap.dll") == NULL)
+      if(LoadLibrary("wpcap.dll") == nullptr)
         return false;
 
       return true;
@@ -75,12 +76,12 @@ namespace Udpcap
       nValue = nDefaultValue;
       DWORD dwBufferSize(sizeof(DWORD));
       DWORD nResult(0);
-      LONG nError = ::RegQueryValueExW(hKey,
-        strValueName.c_str(),
-        0,
-        NULL,
-        reinterpret_cast<LPBYTE>(&nResult),
-        &dwBufferSize);
+      const LONG nError = ::RegQueryValueExW(hKey,
+                                            strValueName.c_str(),
+                                            nullptr,
+                                            nullptr,
+                                            reinterpret_cast<LPBYTE>(&nResult),
+                                            &dwBufferSize);
       if (ERROR_SUCCESS == nError)
       {
         nValue = nResult;
@@ -91,12 +92,12 @@ namespace Udpcap
 
     LONG GetBoolRegKey(HKEY hKey, const std::wstring &strValueName, bool &bValue, bool bDefaultValue)
     {
-      DWORD nDefValue((bDefaultValue) ? 1 : 0);
+      const DWORD nDefValue((bDefaultValue) ? 1 : 0);
       DWORD nResult(nDefValue);
-      LONG nError = GetDWORDRegKey(hKey, strValueName, nResult, nDefValue);
+      const LONG nError = GetDWORDRegKey(hKey, strValueName, nResult, nDefValue);
       if (ERROR_SUCCESS == nError)
       {
-        bValue = (nResult != 0) ? true : false;
+        bValue = (nResult != 0);
       }
       return nError;
     }
@@ -105,22 +106,22 @@ namespace Udpcap
     LONG GetStringRegKey(HKEY hKey, const std::wstring &strValueName, std::wstring &strValue, const std::wstring &strDefaultValue)
     {
       strValue = strDefaultValue;
-      WCHAR szBuffer[512];
+      std::array<WCHAR, 512> szBuffer{};
       DWORD dwBufferSize = sizeof(szBuffer);
-      ULONG nError;
-      nError = RegQueryValueExW(hKey, strValueName.c_str(), 0, NULL, (LPBYTE)szBuffer, &dwBufferSize);
+      ULONG nError(0);
+      nError = RegQueryValueExW(hKey, strValueName.c_str(), nullptr, nullptr, reinterpret_cast<LPBYTE>(szBuffer.data()), &dwBufferSize);
       if (ERROR_SUCCESS == nError)
       {
-        strValue = szBuffer;
+        strValue = szBuffer.data();
       }
       return nError;
     }
 
     bool LoadLoopbackDeviceNameFromRegistry()
     {
-      HKEY hkey;
-      LONG error_code = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Services\\npcap\\Parameters", 0, KEY_READ, &hkey);
-      if (error_code)
+      HKEY hkey = nullptr;
+      const LONG error_code = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Services\\npcap\\Parameters", 0, KEY_READ, &hkey);
+      if (error_code != 0)
       {
         human_readible_error_ = "NPCAP doesn't seem to be installed. Please download and install Npcap from https://nmap.org/npcap/#download";
         std::cerr << "Udpcap ERROR: " << human_readible_error_ << std::endl;
@@ -162,12 +163,12 @@ namespace Udpcap
       RegCloseKey(hkey);
 
       std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
-      std::string loopback_device_name = converter.to_bytes(loopback_device_name_w);
+      const std::string loopback_device_name = converter.to_bytes(loopback_device_name_w);
 
       // The Registry entry is in the form: \Device\{6DBF8591-55F9-4DEF-A317-54B9563A42E3}
       // We however only want the UUID:              6DBF8591-55F9-4DEF-A317-54B9563A42E3
-      size_t open_bracket_pos    = loopback_device_name.find('{');
-      size_t closing_bracket_pos = loopback_device_name.find('}', open_bracket_pos);
+      const size_t open_bracket_pos    = loopback_device_name.find('{');
+      const size_t closing_bracket_pos = loopback_device_name.find('}', open_bracket_pos);
       loopback_device_uuid_string = loopback_device_name.substr(open_bracket_pos + 1, closing_bracket_pos - open_bracket_pos - 1);
 
       return true;
@@ -208,21 +209,21 @@ namespace Udpcap
     {
       typedef std::unique_ptr<pcap_if_t*, void(*)(pcap_if_t**)> pcap_if_t_uniqueptr;
 
-      char errbuf[PCAP_ERRBUF_SIZE];
-      pcap_if_t* alldevs_rawptr;
-      pcap_if_t_uniqueptr alldevs(&alldevs_rawptr, [](pcap_if_t** p) { pcap_freealldevs(*p); });
+      std::array<char, PCAP_ERRBUF_SIZE> errbuf{};
+      pcap_if_t* alldevs_rawptr = nullptr;
+      const pcap_if_t_uniqueptr alldevs(&alldevs_rawptr, [](pcap_if_t** p) { pcap_freealldevs(*p); });
 
       bool loopback_device_found = false;
 
-      if (pcap_findalldevs(alldevs.get(), errbuf) == -1)
+      if (pcap_findalldevs(alldevs.get(), errbuf.data()) == -1)
       {
-        human_readible_error_ = "Error in pcap_findalldevs: " + std::string(errbuf);
-        fprintf(stderr, "Error in pcap_findalldevs: %s\n", errbuf);
+        human_readible_error_ = "Error in pcap_findalldevs: " + std::string(errbuf.data());
+        fprintf(stderr, "Error in pcap_findalldevs: %s\n", errbuf.data());
         return false;
       }
 
       // Check if the loopback device is accessible
-      for (pcap_if_t* pcap_dev = *alldevs.get(); pcap_dev; pcap_dev = pcap_dev->next)
+      for (pcap_if_t* pcap_dev = *alldevs.get(); pcap_dev != nullptr; pcap_dev = pcap_dev->next)
       {
         if (IsLoopbackDevice_NoLock(pcap_dev->name))
         {
@@ -256,7 +257,7 @@ namespace Udpcap
 
   bool Initialize()
   {
-    std::lock_guard<std::mutex> npcap_lock(npcap_mutex);
+    const std::lock_guard<std::mutex> npcap_lock(npcap_mutex);
 
     if (is_initialized) return true;
 
@@ -296,13 +297,13 @@ namespace Udpcap
 
   bool IsInitialized()
   {
-    std::lock_guard<std::mutex> npcap_lock(npcap_mutex);
+    const std::lock_guard<std::mutex> npcap_lock(npcap_mutex);
     return is_initialized;
   }
 
   std::string GetLoopbackDeviceUuidString()
   {
-    std::lock_guard<std::mutex> npcap_lock(npcap_mutex);
+    const std::lock_guard<std::mutex> npcap_lock(npcap_mutex);
 
     if (!loopback_device_name_initialized)
     {
@@ -314,7 +315,7 @@ namespace Udpcap
 
   std::string GetLoopbackDeviceName()
   {
-    std::lock_guard<std::mutex> npcap_lock(npcap_mutex);
+    const std::lock_guard<std::mutex> npcap_lock(npcap_mutex);
 
     if (!loopback_device_name_initialized)
     {
@@ -330,13 +331,13 @@ namespace Udpcap
 
   bool IsLoopbackDevice(const std::string& device_name)
   {
-    std::lock_guard<std::mutex> npcap_lock(npcap_mutex);
+    const std::lock_guard<std::mutex> npcap_lock(npcap_mutex);
     return IsLoopbackDevice_NoLock(device_name);
   }
 
   std::string GetHumanReadibleErrorText()
   {
-    std::lock_guard<std::mutex> npcap_lock(npcap_mutex);
+    const std::lock_guard<std::mutex> npcap_lock(npcap_mutex);
     return human_readible_error_;
   }
 }

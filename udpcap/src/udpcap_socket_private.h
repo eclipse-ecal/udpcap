@@ -116,10 +116,15 @@ namespace Udpcap
     static const int MAX_PACKET_SIZE = 65536; // Npcap Doc: A snapshot length of 65535 should be sufficient, on most if not all networks, to capture all the data available from the packet. 
 
     UdpcapSocketPrivate();
-    ~UdpcapSocketPrivate();
+    ~UdpcapSocketPrivate() = default;
 
-    UdpcapSocketPrivate(UdpcapSocketPrivate const&) = delete;
+    // Copy
+    UdpcapSocketPrivate(UdpcapSocketPrivate const&)             = delete;
     UdpcapSocketPrivate& operator= (UdpcapSocketPrivate const&) = delete;
+
+    // Move
+    UdpcapSocketPrivate& operator=(UdpcapSocketPrivate&&)      = default;
+    UdpcapSocketPrivate(UdpcapSocketPrivate&&)                 = default;
 
     bool isValid() const;
 
@@ -169,10 +174,10 @@ namespace Udpcap
 
     // Callbacks
     static void PacketHandlerVector(unsigned char* param, const struct pcap_pkthdr* header, const unsigned char* pkt_data);
-    static void FillCallbackArgsVector(CallbackArgsVector* callback_args, pcpp::IPv4Layer* ip_layer, pcpp::UdpLayer* udp_layer);
+    static void FillCallbackArgsVector(CallbackArgsVector* callback_args, const pcpp::IPv4Layer* ip_layer, const pcpp::UdpLayer* udp_layer);
 
     static void PacketHandlerRawPtr(unsigned char* param, const struct pcap_pkthdr* header, const unsigned char* pkt_data);
-    static void FillCallbackArgsRawPtr(CallbackArgsRawPtr* callback_args, pcpp::IPv4Layer* ip_layer, pcpp::UdpLayer* udp_layer);
+    static void FillCallbackArgsRawPtr(CallbackArgsRawPtr* callback_args, const pcpp::IPv4Layer* ip_layer, const pcpp::UdpLayer* udp_layer);
 
   private:
     bool        is_valid_;                                                      /**< If the socket is valid and ready to use (e.g. npcap was initialized successfully) */

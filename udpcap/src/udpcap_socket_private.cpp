@@ -40,20 +40,19 @@ namespace Udpcap
   //////////////////////////////////////////
 
   UdpcapSocketPrivate::UdpcapSocketPrivate()
-    : is_valid_(false)
-    , bound_state_(false)
-    , bound_port_(0)
+    : is_valid_                  (Udpcap::Initialize())
+    , bound_state_               (false)
+    , bound_port_                (0)
     , multicast_loopback_enabled_(true)
-    , receive_buffer_size_(-1)
+    , receive_buffer_size_       (-1)
   {
-    is_valid_ = Udpcap::Initialize();
   }
 
-  UdpcapSocketPrivate::~UdpcapSocketPrivate()
-  {
-    // @todo: reinvestigate why it crashes on close. (Maybe check if i have implemented copy / move constructors properly)
-    //close();
-  }
+  //UdpcapSocketPrivate::~UdpcapSocketPrivate()
+  //{
+  //  // @todo: reinvestigate why it crashes on close. (Maybe check if i have implemented copy / move constructors properly)
+  //  //close();
+  //}
 
   bool UdpcapSocketPrivate::isValid() const
   {
@@ -224,7 +223,7 @@ namespace Udpcap
       return false;
     }
 
-    if (pcap_win32_handles_.size() < 1)
+    if (pcap_win32_handles_.empty())
     {
       // No open devices => fail!
       LOG_DEBUG("Has Pending Datagrams error: No open devices");
@@ -239,7 +238,7 @@ namespace Udpcap
       num_handles = MAXIMUM_WAIT_OBJECTS;
     }
 
-    DWORD wait_result = WaitForMultipleObjects(num_handles, &pcap_win32_handles_[0], false, 0);
+    const DWORD wait_result = WaitForMultipleObjects(num_handles, pcap_win32_handles_.data(), static_cast<BOOL>(false), 0);
 
     // Check if any HADNLE was in signaled state
     return((wait_result >= WAIT_OBJECT_0) && wait_result <= (WAIT_OBJECT_0 + num_handles - 1));
@@ -267,7 +266,7 @@ namespace Udpcap
       return{};
     }
 
-    if (pcap_win32_handles_.size() < 1)
+    if (pcap_win32_handles_.empty())
     {
       // No open devices => fail!
       LOG_DEBUG("Receive error: No open devices");
@@ -281,7 +280,7 @@ namespace Udpcap
       num_handles = MAXIMUM_WAIT_OBJECTS;
     }
 
-    bool wait_forever = (timeout_ms == INFINITE);
+    const bool wait_forever = (timeout_ms == INFINITE);
     auto wait_until = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
 
     std::vector<char> datagram;
@@ -303,11 +302,11 @@ namespace Udpcap
         }
       }
 
-      DWORD wait_result = WaitForMultipleObjects(num_handles, &pcap_win32_handles_[0], false, remaining_time_to_wait_ms);
+      const DWORD wait_result = WaitForMultipleObjects(num_handles, pcap_win32_handles_.data(), static_cast<BOOL>(false), remaining_time_to_wait_ms);
 
       if ((wait_result >= WAIT_OBJECT_0) && wait_result <= (WAIT_OBJECT_0 + num_handles - 1))
       {
-        int dev_index = (wait_result - WAIT_OBJECT_0);
+        const int dev_index = (wait_result - WAIT_OBJECT_0);
         
         callback_args.link_type_     = static_cast<pcpp::LinkLayerType>(pcap_datalink(pcap_devices_[dev_index].pcap_handle_));
         callback_args.ip_reassembly_ = ip_reassembly_[dev_index].get();
@@ -358,7 +357,7 @@ namespace Udpcap
       return{};
     }
 
-    if (pcap_win32_handles_.size() < 1)
+    if (pcap_win32_handles_.empty())
     {
       // No open devices => fail!
       LOG_DEBUG("Receive error: No open devices");
@@ -372,7 +371,7 @@ namespace Udpcap
       num_handles = MAXIMUM_WAIT_OBJECTS;
     }
 
-    bool wait_forever = (timeout_ms == INFINITE);
+    const bool wait_forever = (timeout_ms == INFINITE);
     auto wait_until = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
 
     CallbackArgsRawPtr callback_args(data, max_len, source_address, source_port, bound_port_, pcpp::LinkLayerType::LINKTYPE_NULL);
@@ -393,11 +392,11 @@ namespace Udpcap
         }
       }
 
-      DWORD wait_result = WaitForMultipleObjects(num_handles, &pcap_win32_handles_[0], false, remaining_time_to_wait_ms);
+      const DWORD wait_result = WaitForMultipleObjects(num_handles, pcap_win32_handles_.data(), static_cast<BOOL>(false), remaining_time_to_wait_ms);
 
       if ((wait_result >= WAIT_OBJECT_0) && wait_result <= (WAIT_OBJECT_0 + num_handles - 1))
       {
-        int dev_index = (wait_result - WAIT_OBJECT_0);
+        const int dev_index = (wait_result - WAIT_OBJECT_0);
 
         callback_args.link_type_     = static_cast<pcpp::LinkLayerType>(pcap_datalink(pcap_devices_[dev_index].pcap_handle_));
         callback_args.ip_reassembly_ = ip_reassembly_[dev_index].get();
@@ -557,17 +556,17 @@ namespace Udpcap
       return{};
 
     // Retrieve device list
-    char errbuf[PCAP_ERRBUF_SIZE];
-    pcap_if_t* alldevs_rawptr;
-    pcap_if_t_uniqueptr alldevs(&alldevs_rawptr, [](pcap_if_t** p) { pcap_freealldevs(*p); });
+    std::array<char, PCAP_ERRBUF_SIZE> errbuf{};
+    pcap_if_t* alldevs_rawptr = nullptr;
+    const pcap_if_t_uniqueptr alldevs(&alldevs_rawptr, [](pcap_if_t** p) { pcap_freealldevs(*p); });
 
-    if (pcap_findalldevs(alldevs.get(), errbuf) == -1)
+    if (pcap_findalldevs(alldevs.get(), errbuf.data()) == -1)
     {
-      fprintf(stderr, "Error in pcap_findalldevs: %s\n", errbuf);
+      fprintf(stderr, "Error in pcap_findalldevs: %s\n", errbuf.data());
       return{};
     }
 
-    for (pcap_if_t* pcap_dev = *alldevs.get(); pcap_dev; pcap_dev = pcap_dev->next)
+    for (pcap_if_t* pcap_dev = *alldevs.get(); pcap_dev != nullptr; pcap_dev = pcap_dev->next)
     {
       // A user may have done something bad like assigning an IPv4 address to
       // the loopback adapter. We don't want to open it in that case. In a real-
@@ -579,11 +578,11 @@ namespace Udpcap
 
       // Iterate through all addresses of the device and check if one of them
       // matches the one we are looking for.
-      for (pcap_addr* pcap_dev_addr = pcap_dev->addresses; pcap_dev_addr; pcap_dev_addr = pcap_dev_addr->next)
+      for (pcap_addr* pcap_dev_addr = pcap_dev->addresses; pcap_dev_addr != nullptr; pcap_dev_addr = pcap_dev_addr->next)
       {
         if (pcap_dev_addr->addr->sa_family == AF_INET)
         {         
-          struct sockaddr_in* device_ipv4_addr = (struct sockaddr_in *)pcap_dev_addr->addr;
+          struct sockaddr_in* device_ipv4_addr = reinterpret_cast<struct sockaddr_in *>(pcap_dev_addr->addr);
           if (device_ipv4_addr->sin_addr.s_addr == ip.toInt())
           {
             // The IPv4 address matches!
@@ -600,20 +599,20 @@ namespace Udpcap
   std::vector<std::pair<std::string, std::string>> UdpcapSocketPrivate::getAllDevices()
   {
     // Retrieve device list
-    char errbuf[PCAP_ERRBUF_SIZE];
-    pcap_if_t* alldevs_rawptr;
-    pcap_if_t_uniqueptr alldevs(&alldevs_rawptr, [](pcap_if_t** p) { pcap_freealldevs(*p); });
+    std::array<char, PCAP_ERRBUF_SIZE> errbuf{};
+    pcap_if_t* alldevs_rawptr = nullptr;
+    const pcap_if_t_uniqueptr alldevs(&alldevs_rawptr, [](pcap_if_t** p) { pcap_freealldevs(*p); });
 
-    if (pcap_findalldevs(alldevs.get(), errbuf) == -1)
+    if (pcap_findalldevs(alldevs.get(), errbuf.data()) == -1)
     {
-      fprintf(stderr, "Error in pcap_findalldevs: %s\n", errbuf);
+      fprintf(stderr, "Error in pcap_findalldevs: %s\n", errbuf.data());
       return{};
     }
 
     std::vector<std::pair<std::string, std::string>> alldev_vector;
-    for (pcap_if_t* pcap_dev = *alldevs.get(); pcap_dev; pcap_dev = pcap_dev->next)
+    for (pcap_if_t* pcap_dev = *alldevs.get(); pcap_dev != nullptr; pcap_dev = pcap_dev->next)
     {
-      alldev_vector.push_back(std::make_pair(std::string(pcap_dev->name), std::string(pcap_dev->description)));
+      alldev_vector.emplace_back(std::string(pcap_dev->name), std::string(pcap_dev->description));
     }
     return alldev_vector;
   }
@@ -628,7 +627,7 @@ namespace Udpcap
       std::vector<char> mac(mac_size);
 
       // Send OID-Get-Request to the driver
-      if (pcap_oid_get_request(pcap_handle, OID_802_3_CURRENT_ADDRESS, &mac[0], &mac_size))
+      if (pcap_oid_get_request(pcap_handle, OID_802_3_CURRENT_ADDRESS, mac.data(), &mac_size) != 0)
       {
         LOG_DEBUG("Error getting MAC address");
         return "";
@@ -636,7 +635,7 @@ namespace Udpcap
 
       // Convert binary mac into human-readble form (we need it this way for the kernel filter)
       std::string mac_string(18, ' ');
-      snprintf(&mac_string[0], mac_string.size(), "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+      snprintf(&mac_string[0], mac_string.size(), "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]); // NOLINT(readability-container-data-pointer) Reason: I need to write to the string, but the data() pointer is const. Since C++11, the operation is safe, as stings are required to be stored in contiguous memory.
       mac_string.pop_back(); // Remove terminating null char
 
       return std::move(mac_string);
@@ -650,13 +649,13 @@ namespace Udpcap
 
   bool UdpcapSocketPrivate::openPcapDevice(const std::string& device_name)
   {
-    char errbuf[PCAP_ERRBUF_SIZE];
+    std::array<char, PCAP_ERRBUF_SIZE> errbuf{};
 
-    pcap_t* pcap_handle = pcap_create(device_name.c_str(), errbuf);
+    pcap_t* pcap_handle = pcap_create(device_name.c_str(), errbuf.data());
 
     if (pcap_handle == nullptr)
     {
-      fprintf(stderr, "\nUnable to open the adapter: %s\n", errbuf);
+      fprintf(stderr, "\nUnable to open the adapter: %s\n", errbuf.data());
       return false;
     }
 
@@ -669,7 +668,7 @@ namespace Udpcap
       pcap_set_buffer_size(pcap_handle, receive_buffer_size_);
     }
 
-    int errorcode = pcap_activate(pcap_handle);
+    const int errorcode = pcap_activate(pcap_handle);
     switch (errorcode)
     {
     case 0:
@@ -704,7 +703,7 @@ namespace Udpcap
     }
 
 
-    PcapDev pcap_dev(pcap_handle, IsLoopbackDevice(device_name), device_name);
+    const PcapDev pcap_dev(pcap_handle, IsLoopbackDevice(device_name), device_name);
    
     pcap_devices_      .push_back(pcap_dev);
     pcap_win32_handles_.push_back(pcap_getevent(pcap_handle));
@@ -720,7 +719,7 @@ namespace Udpcap
     // No outgoing packets (determined by MAC, loopback packages don't have an ethernet header)
     if (!pcap_dev.is_loopback_)
     {
-      std::string mac_string = getMac(pcap_dev.pcap_handle_);
+      const std::string mac_string = getMac(pcap_dev.pcap_handle_);
       if (!mac_string.empty())
       {
         ss << "not ether src " << mac_string;
@@ -744,7 +743,7 @@ namespace Udpcap
     ss << ")";
       
     // Multicast traffic
-    if ((multicast_groups_.size() > 0)
+    if ((!multicast_groups_.empty())
       &&(!pcap_dev.is_loopback_ || multicast_loopback_enabled_))
     {
       ss << " or (ip multicast and (";
@@ -765,17 +764,17 @@ namespace Udpcap
   void UdpcapSocketPrivate::updateCaptureFilter(PcapDev& pcap_dev)
   {
     // Create new filter
-    std::string filter_string = createFilterString(pcap_dev);
+    const std::string filter_string = createFilterString(pcap_dev);
 
     LOG_DEBUG("Setting filter string: " + filter_string);
 
-    bpf_program filter_program;
+    bpf_program filter_program{};
 
     // Compile the filter
-    int pcap_compile_ret;
+    int pcap_compile_ret(PCAP_ERROR);
     {
       // pcap_compile is not thread safe, so we need a global mutex
-      std::lock_guard<std::mutex> pcap_compile_lock(pcap_compile_mutex);
+      const std::lock_guard<std::mutex> pcap_compile_lock(pcap_compile_mutex);
       pcap_compile_ret = pcap_compile(pcap_dev.pcap_handle_, &filter_program, filter_string.c_str(), 1, PCAP_NETMASK_UNKNOWN);
     }
 
@@ -804,13 +803,13 @@ namespace Udpcap
 
   void UdpcapSocketPrivate::kickstartLoopbackMulticast() const
   {
-    uint16_t kickstart_port = 62000;
+    const uint16_t kickstart_port = 62000;
 
     asio::io_context iocontext;
     asio::ip::udp::socket kickstart_socket(iocontext);
 
     // create socket
-    asio::ip::udp::endpoint listen_endpoint(asio::ip::make_address("0.0.0.0"), kickstart_port);
+    const asio::ip::udp::endpoint listen_endpoint(asio::ip::make_address("0.0.0.0"), kickstart_port);
     kickstart_socket.open(listen_endpoint.protocol());
 
     // set socket reuse
@@ -828,7 +827,7 @@ namespace Udpcap
     // Join all multicast groups
     for (const auto& multicast_group : multicast_groups_)
     {
-      asio::ip::address asio_mc_group = asio::ip::make_address(multicast_group.toString());
+      const asio::ip::address asio_mc_group = asio::ip::make_address(multicast_group.toString());
       kickstart_socket.set_option(asio::ip::multicast::join_group(asio_mc_group));
     }
 
@@ -836,8 +835,8 @@ namespace Udpcap
     for (const auto& multicast_group : multicast_groups_)
     {
       LOG_DEBUG(std::string("Sending loopback kickstart packet to ") + multicast_group.toString() + ":" + std::to_string(kickstart_port));
-      asio::ip::address asio_mc_group = asio::ip::make_address(multicast_group.toString());
-      asio::ip::udp::endpoint send_endpoint(asio_mc_group, kickstart_port);
+      const asio::ip::address asio_mc_group = asio::ip::make_address(multicast_group.toString());
+      const asio::ip::udp::endpoint send_endpoint(asio_mc_group, kickstart_port);
       kickstart_socket.send_to(asio::buffer(static_cast<void*>(nullptr), 0), send_endpoint, 0);
     }
 
@@ -849,37 +848,37 @@ namespace Udpcap
   {
     CallbackArgsVector* callback_args = reinterpret_cast<CallbackArgsVector*>(param);
 
-    pcpp::RawPacket rawPacket(pkt_data, header->caplen, header->ts, false, callback_args->link_type_);
-    pcpp::Packet    packet(&rawPacket, pcpp::UDP);
+    pcpp::RawPacket       rawPacket(pkt_data, header->caplen, header->ts, false, callback_args->link_type_);
+    const pcpp::Packet    packet(&rawPacket, pcpp::UDP);
 
-    pcpp::IPv4Layer* ip_layer  = packet.getLayerOfType<pcpp::IPv4Layer>();
-    pcpp::UdpLayer*  udp_layer = packet.getLayerOfType<pcpp::UdpLayer>();
+    const pcpp::IPv4Layer* ip_layer  = packet.getLayerOfType<pcpp::IPv4Layer>();
+    const pcpp::UdpLayer*  udp_layer = packet.getLayerOfType<pcpp::UdpLayer>();
 
-    if (ip_layer)
+    if (ip_layer != nullptr)
     {
       if (ip_layer->isFragment())
       {
         // Handle fragmented IP traffic
-        pcpp::IPReassembly::ReassemblyStatus status;
+        pcpp::IPReassembly::ReassemblyStatus status(pcpp::IPReassembly::ReassemblyStatus::NON_IP_PACKET);
 
         // Try to reassemble packet
-        pcpp::Packet* reassembled_packet = callback_args->ip_reassembly_->processPacket(&rawPacket, status);
+        const pcpp::Packet* reassembled_packet = callback_args->ip_reassembly_->processPacket(&rawPacket, status);
 
         // If we are done reassembling the packet, we return it to the user
-        if (reassembled_packet)
+        if (reassembled_packet != nullptr)
         {
-          pcpp::Packet re_parsed_packet(reassembled_packet->getRawPacket(), pcpp::UDP);
+          const pcpp::Packet re_parsed_packet(reassembled_packet->getRawPacket(), pcpp::UDP);
 
-          pcpp::IPv4Layer* reassembled_ip_layer  = re_parsed_packet.getLayerOfType<pcpp::IPv4Layer>();
-          pcpp::UdpLayer*  reassembled_udp_layer = re_parsed_packet.getLayerOfType<pcpp::UdpLayer>();
+          const pcpp::IPv4Layer* reassembled_ip_layer  = re_parsed_packet.getLayerOfType<pcpp::IPv4Layer>();
+          const pcpp::UdpLayer*  reassembled_udp_layer = re_parsed_packet.getLayerOfType<pcpp::UdpLayer>();
 
-          if (reassembled_ip_layer && reassembled_udp_layer)
+          if ((reassembled_ip_layer != nullptr) && (reassembled_udp_layer != nullptr))
             FillCallbackArgsVector(callback_args, reassembled_ip_layer, reassembled_udp_layer);
 
           delete reassembled_packet; // We need to manually delete the packet pointer
         }
       }
-      else if (udp_layer)
+      else if (udp_layer != nullptr)
       {
         // Handle normal IP traffic (un-fragmented)
         FillCallbackArgsVector(callback_args, ip_layer, udp_layer);
@@ -887,16 +886,16 @@ namespace Udpcap
     }
   }
 
-  void UdpcapSocketPrivate::FillCallbackArgsVector(CallbackArgsVector* callback_args, pcpp::IPv4Layer* ip_layer, pcpp::UdpLayer* udp_layer)
+  void UdpcapSocketPrivate::FillCallbackArgsVector(CallbackArgsVector* callback_args, const pcpp::IPv4Layer* ip_layer, const pcpp::UdpLayer* udp_layer)
   {
     auto dst_port = ntohs(udp_layer->getUdpHeader()->portDst);
 
     if (dst_port == callback_args->bound_port_)
     {
-      if (callback_args->source_address_)
+      if (callback_args->source_address_ != nullptr)
         *callback_args->source_address_ = HostAddress(ip_layer->getSrcIPv4Address().toInt());
 
-      if (callback_args->source_port_)
+      if (callback_args->source_port_ != nullptr)
         *callback_args->source_port_ = ntohs(udp_layer->getUdpHeader()->portSrc);
 
       callback_args->destination_vector_->reserve(udp_layer->getLayerPayloadSize());
@@ -909,37 +908,37 @@ namespace Udpcap
   {
     CallbackArgsRawPtr* callback_args = reinterpret_cast<CallbackArgsRawPtr*>(param);
 
-    pcpp::RawPacket rawPacket(pkt_data, header->caplen, header->ts, false, callback_args->link_type_);
-    pcpp::Packet    packet(&rawPacket, pcpp::UDP);
+    pcpp::RawPacket       rawPacket(pkt_data, header->caplen, header->ts, false, callback_args->link_type_);
+    const pcpp::Packet    packet(&rawPacket, pcpp::UDP);
 
-    pcpp::IPv4Layer* ip_layer = packet.getLayerOfType<pcpp::IPv4Layer>();
-    pcpp::UdpLayer*  udp_layer = packet.getLayerOfType<pcpp::UdpLayer>();
+    const pcpp::IPv4Layer* ip_layer = packet.getLayerOfType<pcpp::IPv4Layer>();
+    const pcpp::UdpLayer*  udp_layer = packet.getLayerOfType<pcpp::UdpLayer>();
 
-    if (ip_layer)
+    if (ip_layer != nullptr)
     {
       if (ip_layer->isFragment())
       {
         // Handle fragmented IP traffic
-        pcpp::IPReassembly::ReassemblyStatus status;
+        pcpp::IPReassembly::ReassemblyStatus status(pcpp::IPReassembly::ReassemblyStatus::NON_IP_PACKET);
 
         // Try to reasseble packet
         pcpp::Packet* reassembled_packet = callback_args->ip_reassembly_->processPacket(&rawPacket, status);
 
         // If we are done reassembling the packet, we return it to the user
-        if (reassembled_packet)
+        if (reassembled_packet != nullptr)
         {
-          pcpp::Packet re_parsed_packet(reassembled_packet->getRawPacket(), pcpp::UDP);
+          const pcpp::Packet re_parsed_packet(reassembled_packet->getRawPacket(), pcpp::UDP);
 
-          pcpp::IPv4Layer* reassembled_ip_layer = re_parsed_packet.getLayerOfType<pcpp::IPv4Layer>();
-          pcpp::UdpLayer*  reassembled_udp_layer = re_parsed_packet.getLayerOfType<pcpp::UdpLayer>();
+          const pcpp::IPv4Layer* reassembled_ip_layer = re_parsed_packet.getLayerOfType<pcpp::IPv4Layer>();
+          const pcpp::UdpLayer*  reassembled_udp_layer = re_parsed_packet.getLayerOfType<pcpp::UdpLayer>();
 
-          if (reassembled_ip_layer && reassembled_udp_layer)
+          if ((reassembled_ip_layer != nullptr) && (reassembled_udp_layer != nullptr))
             FillCallbackArgsRawPtr(callback_args, reassembled_ip_layer, reassembled_udp_layer);
 
           delete reassembled_packet; // We need to manually delete the packet pointer
         }
       }
-      else if (udp_layer)
+      else if (udp_layer != nullptr)
       {
         // Handle normal IP traffic (un-fragmented)
         FillCallbackArgsRawPtr(callback_args, ip_layer, udp_layer);
@@ -948,20 +947,20 @@ namespace Udpcap
 
   }
 
-  void UdpcapSocketPrivate::FillCallbackArgsRawPtr(CallbackArgsRawPtr* callback_args, pcpp::IPv4Layer* ip_layer, pcpp::UdpLayer* udp_layer)
+  void UdpcapSocketPrivate::FillCallbackArgsRawPtr(CallbackArgsRawPtr* callback_args, const pcpp::IPv4Layer* ip_layer, const pcpp::UdpLayer* udp_layer)
   {
     auto dst_port = ntohs(udp_layer->getUdpHeader()->portDst);
 
     if (dst_port == callback_args->bound_port_)
     {
-      if (callback_args->source_address_)
+      if (callback_args->source_address_ != nullptr)
         *callback_args->source_address_ = HostAddress(ip_layer->getSrcIPv4Address().toInt());
 
-      if (callback_args->source_port_)
+      if (callback_args->source_port_ != nullptr)
         *callback_args->source_port_ = ntohs(udp_layer->getUdpHeader()->portSrc);
 
 
-      size_t bytes_to_copy = std::min(callback_args->destination_buffer_size_, udp_layer->getLayerPayloadSize());
+      const size_t bytes_to_copy = std::min(callback_args->destination_buffer_size_, udp_layer->getLayerPayloadSize());
 
       memcpy_s(callback_args->destination_buffer_, callback_args->destination_buffer_size_, udp_layer->getLayerPayload(), bytes_to_copy);
       callback_args->bytes_copied_ = bytes_to_copy;
