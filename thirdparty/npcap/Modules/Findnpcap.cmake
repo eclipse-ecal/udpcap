@@ -38,7 +38,7 @@ find_path(npcap_INCLUDE_DIR
 )
 
 # Lib dir
-if(("${CMAKE_GENERATOR_PLATFORM}" MATCHES "x64") OR ("${CMAKE_GENERATOR}" MATCHES "(Win64|IA64)"))
+if("${CMAKE_SIZEOF_VOID_P}" EQUAL 8)
     # Find 64-bit libraries
     find_path (npcap_LIB_DIR
         NAMES wpcap.lib
