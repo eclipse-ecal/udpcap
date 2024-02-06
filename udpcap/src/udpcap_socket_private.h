@@ -20,11 +20,14 @@
 #pragma once
 
 #include <udpcap/host_address.h>
+#include <udpcap/error.h>
+
 #include <vector>
 #include <set>
 #include <memory>
 #include <chrono>
 #include <deque>
+#include <shared_mutex>
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -129,20 +132,28 @@ namespace Udpcap
     bool isValid() const;
 
     bool bind(const HostAddress& local_address, uint16_t local_port);
-
     bool isBound() const;
+
     HostAddress localAddress() const;
     uint16_t localPort() const;
 
     bool setReceiveBufferSize(int buffer_size);
 
+    // TODO: Re-implement or remove. This is currently (2024-02-06) implemented faulty.
     bool hasPendingDatagrams() const;
 
-    std::vector<char> receiveDatagram(HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
-    std::vector<char> receiveDatagram(unsigned long timeout_ms, HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
+    std::vector<char> receiveDatagram_OLD(HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
+    std::vector<char> receiveDatagram_OLD(unsigned long timeout_ms, HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
 
-    size_t receiveDatagram(char* data, size_t max_len, HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
-    size_t receiveDatagram(char* data, size_t max_len, unsigned long timeout_ms, HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
+    size_t receiveDatagram_OLD(char* data, size_t max_len, HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
+    size_t receiveDatagram_OLD(char* data, size_t max_len, unsigned long timeout_ms, HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
+
+    size_t receiveDatagram(char*            data
+                          , size_t          max_len
+                          , unsigned long   timeout_ms
+                          , HostAddress*    source_address
+                          , uint16_t*       source_port
+                          , Udpcap::Error&  error);
 
     bool joinMulticastGroup(const HostAddress& group_address);
     bool leaveMulticastGroup(const HostAddress& group_address);
@@ -151,6 +162,7 @@ namespace Udpcap
     bool isMulticastLoopbackEnabled() const;
 
     void close();
+    bool isClosed() const;
 
   //////////////////////////////////////////
   //// Internal
@@ -164,7 +176,7 @@ namespace Udpcap
 
     static std::string getMac(pcap_t* const pcap_handle);
 
-    bool openPcapDevice(const std::string& device_name);
+    bool openPcapDevice_nolock(const std::string& device_name);
 
     std::string createFilterString(PcapDev& pcap_dev) const;
     void updateCaptureFilter(PcapDev& pcap_dev);
@@ -189,9 +201,12 @@ namespace Udpcap
     std::set<HostAddress> multicast_groups_;
     bool                  multicast_loopback_enabled_;                          /**< Winsocks style IP_MULTICAST_LOOP: if enabled, the socket can receive loopback multicast packages */
 
+    mutable std::shared_mutex       pcap_devices_lists_mutex_;                  /**< Mutex to protect the pcap_devices_, pcap_win32_handles_, pcap_devices_ip_reassembly_ lists. Only the lists, not the content. */
+    mutable std::mutex              pcap_devices_callback_mutex_;               /**< Mutex to protect the pcap_devices during a callback AND the pcap_devices_closed variable. While a callback is running, the pcap_devices MUST NOT be closed. */
+    bool                            pcap_devices_closed_;                       /**< Tells whether we have already closed the socket. */
     std::vector<PcapDev>            pcap_devices_;                              /**< List of open PcapDevices */
     std::vector<HANDLE>             pcap_win32_handles_;                        /**< Native Win32 handles to wait for data on the PCAP Devices. The List is in sync with pcap_devices. */
-    std::vector<std::unique_ptr<Udpcap::IpReassembly>> ip_reassembly_;          /**< IP Reassembly for fragmented IP traffic. The list is in sync with the pcap_devices. */
+    std::vector<std::unique_ptr<Udpcap::IpReassembly>> pcap_devices_ip_reassembly_;          /**< IP Reassembly for fragmented IP traffic. The list is in sync with the pcap_devices. */
 
     int                  receive_buffer_size_;
   };

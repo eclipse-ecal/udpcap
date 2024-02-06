@@ -36,6 +36,7 @@ include(GenerateExportHeader)
 
 # Public API include directory
 set (includes
+    include/udpcap/error.h
     include/udpcap/host_address.h
     include/udpcap/npcap_helpers.h
     include/udpcap/udpcap_socket.h

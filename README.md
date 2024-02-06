@@ -60,7 +60,7 @@ Udpcap has a very simple API with strong similarities to other well-known socket
 
 int main()
 {
-  // Create a Udpcap socket and bind it to a port. For this exampel we want to
+  // Create a Udpcap socket and bind it to a port. For this example we want to
   // receive data from any local or remote source and therefore not bind to an
   // IP address.
   
@@ -70,13 +70,23 @@ int main()
 
   for (;;)
   {
+    // Allocate a buffer for the received datagram. The size of the buffer
+    // should be large enough to hold the largest possible datagram.
+    std::vector<char> datagram(65535);
+
+    // Create an error code object to hold the error code if an error occurs.
+    Udpcap::Error error = Udpcap::Error::OK;
+
     // Receive a datagram from the Socket. This is a blocking
     // operation. The operation will return once a datagram has been received,
     // the socket was closed by another thread or an error occured.
-    std::vector<char> received_datagram = socket.receiveDatagram();
+    size_t num_bytes = socket.receiveDatagram(datagram.data(), datagram.size(), error);
 
-    std::cout << "Received " << received_datagram.size() << " bytes: "
-              << std::string(received_datagram.data(), received_datagram.size())
+    // Resize the buffer to the actual size of the received datagram.
+    datagram.resize(num_bytes);
+
+    std::cout << "Received " << datagram.size() << " bytes: "
+              << std::string(datagram.data(), datagram.size())
               << std::endl;
   }
 
@@ -117,10 +127,12 @@ You can set the following CMake Options to control how Udpcap is supposed to bui
 **Option**                                     | **Type** | **Default** | **Explanation**                                                                                                 |
 |----------------------------------------------|----------|-------------|-----------------------------------------------------------------------------------------------------------------|
 | `UDPCAP_BUILD_SAMPLES`                       | `BOOL`   | `ON`        | Build the Udpcap (and asio) samples for sending and receiving dummy data                                        |
+| `UDPCAP_BUILD_TESTS`                         | `BOOL`   | `OFF`       | Build the udpcap GTests. Requires GTest::GTest to be available. |
 | `UDPCAP_THIRDPARTY_ENABLED`                  | `BOOL`   | `ON`        | Activate / Deactivate the usage of integrated dependencies.                                                     |
 | `UDPCAP_THIRDPARTY_USE_BUILTIN_NPCAP`        | `BOOL`   | `ON`        | Fetch and build against an integrated Version of the npcap SDK. <br>Only available if `UDPCAP_THIRDPARTY_ENABLED=ON` |
 | `UDPCAP_THIRDPARTY_USE_BUILTIN_PCAPPLUSPLUS` | `BOOL`   | `ON`        | Fetch and build against an integrated Version of Pcap++. <br>_Only available if `UDPCAP_THIRDPARTY_ENABLED=ON`_        |
 | `UDPCAP_THIRDPARTY_USE_BUILTIN_ASIO`         | `BOOL`   | `ON`        | Fetch and build against an integrated Version of asio. <br>Only available if `UDPCAP_THIRDPARTY_ENABLED=ON`          |
+| `UDPCAP_THIRDPARTY_USE_BUILTIN_GTEST`        | `BOOL`   | `ON`        | Fetch and build tests against a predefined version of GTest. If disabled, the targets have to be provided externally. <br>Only available if `UDPCAP_THIRDPARTY_ENABLED=ON` and `UDPCAP_BUILD_TESTS=ON`|
 | `BUILD_SHARED_LIBS`                          | `BOOL`   |             | Not a udpcap option, but use this to control whether you want to have a static or shared library                |
 # How to integrate Udpcap in your project
 

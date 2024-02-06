@@ -45,10 +45,10 @@ namespace Udpcap
 
   bool              UdpcapSocket::hasPendingDatagrams        () const                                                { return udpcap_socket_private_->hasPendingDatagrams(); }
 
-  std::vector<char> UdpcapSocket::receiveDatagram            (HostAddress* source_address, uint16_t* source_port)                                                       { return udpcap_socket_private_->receiveDatagram(source_address, source_port); }
-  std::vector<char> UdpcapSocket::receiveDatagram            (unsigned long timeout_ms, HostAddress* source_address, uint16_t* source_port)                             { return udpcap_socket_private_->receiveDatagram(timeout_ms, source_address, source_port); }
-  size_t            UdpcapSocket::receiveDatagram            (char* data, size_t max_len, HostAddress* source_address, uint16_t* source_port)                           { return udpcap_socket_private_->receiveDatagram(data, max_len, source_address, source_port); }
-  size_t            UdpcapSocket::receiveDatagram            (char* data, size_t max_len, unsigned long timeout_ms, HostAddress* source_address, uint16_t* source_port) { return udpcap_socket_private_->receiveDatagram(data, max_len, timeout_ms, source_address, source_port); }
+  size_t            UdpcapSocket::receiveDatagram(char* data, size_t max_len, unsigned long timeout_ms, HostAddress* source_address, uint16_t* source_port, Udpcap::Error& error) { return udpcap_socket_private_->receiveDatagram(data, max_len, timeout_ms, source_address, source_port, error); }
+  size_t            UdpcapSocket::receiveDatagram(char* data, size_t max_len, unsigned long timeout_ms, Udpcap::Error& error)                                                     { return udpcap_socket_private_->receiveDatagram(data, max_len, timeout_ms, nullptr, nullptr, error); }
+  size_t            UdpcapSocket::receiveDatagram(char* data, size_t max_len, Udpcap::Error& error)                                                                               { return udpcap_socket_private_->receiveDatagram(data, max_len, 0, nullptr, nullptr, error); }
+  size_t            UdpcapSocket::receiveDatagram(char* data, size_t max_len, HostAddress* source_address, uint16_t* source_port, Udpcap::Error& error)                           { return udpcap_socket_private_->receiveDatagram(data, max_len, 0, source_address, source_port, error); }
 
   bool              UdpcapSocket::joinMulticastGroup         (const HostAddress& group_address)                      { return udpcap_socket_private_->joinMulticastGroup(group_address); }
   bool              UdpcapSocket::leaveMulticastGroup        (const HostAddress& group_address)                      { return udpcap_socket_private_->leaveMulticastGroup(group_address); }
@@ -57,5 +57,6 @@ namespace Udpcap
   bool              UdpcapSocket::isMulticastLoopbackEnabled () const                                                { return udpcap_socket_private_->isMulticastLoopbackEnabled(); }
 
   void              UdpcapSocket::close                      ()                                                      { udpcap_socket_private_->close(); }
+  bool              UdpcapSocket::isClosed                   () const                                                { return udpcap_socket_private_->isClosed(); }
 
 }

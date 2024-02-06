@@ -30,6 +30,8 @@
 #include <sstream>
 #include <iostream>
 #include <algorithm>
+#include <system_error>
+#include <mutex>
 
 #include <asio.hpp>
 
@@ -45,6 +47,7 @@ namespace Udpcap
     , bound_port_                (0)
     , multicast_loopback_enabled_(true)
     , receive_buffer_size_       (-1)
+    , pcap_devices_closed_       (false)
   {
   }
 
@@ -86,12 +89,14 @@ namespace Udpcap
 
     // Valid address => Try to bind to address!
     
+    std::unique_lock<std::shared_mutex> pcap_devices_lists_lock(pcap_devices_lists_mutex_);
+
     if (local_address.isLoopback())
     {
       // Bind to localhost (We cannot find it by IP 127.0.0.1, as that IP is technically not even assignable to the loopback adapter).
       LOG_DEBUG(std::string("Opening Loopback device ") + GetLoopbackDeviceName());
 
-      if (!openPcapDevice(GetLoopbackDeviceName()))
+      if (!openPcapDevice_nolock(GetLoopbackDeviceName()))
       {
         LOG_DEBUG(std::string("Bind error: Unable to bind to ") + GetLoopbackDeviceName());
         close();
@@ -114,7 +119,7 @@ namespace Udpcap
       {
         LOG_DEBUG(std::string("Opening ") + dev.first + " (" + dev.second + ")");
 
-        if (!openPcapDevice(dev.first))
+        if (!openPcapDevice_nolock(dev.first))
         {
           LOG_DEBUG(std::string("Bind error: Unable to bind to ") + dev.first);
         }
@@ -134,7 +139,7 @@ namespace Udpcap
       
       LOG_DEBUG(std::string("Opening ") + dev.first + " (" + dev.second + ")");
 
-      if (!openPcapDevice(dev.first))
+      if (!openPcapDevice_nolock(dev.first))
       {
         LOG_DEBUG(std::string("Bind error: Unable to bind to ") + dev.first);
         close();
@@ -144,7 +149,7 @@ namespace Udpcap
       // Also open loopback adapter. We always have to expect the local machine sending data to its own IP address.
       LOG_DEBUG(std::string("Opening Loopback device ") + GetLoopbackDeviceName());
 
-      if (!openPcapDevice(GetLoopbackDeviceName()))
+      if (!openPcapDevice_nolock(GetLoopbackDeviceName()))
       {
         LOG_DEBUG(std::string("Bind error: Unable to open ") + GetLoopbackDeviceName());
         close();
@@ -152,9 +157,10 @@ namespace Udpcap
       }
     }
     
-    bound_address_ = local_address;
-    bound_port_    = local_port;
-    bound_state_   = true;
+    bound_address_       = local_address;
+    bound_port_          = local_port;
+    bound_state_         = true;
+    pcap_devices_closed_ = false;
 
     for (auto& pcap_dev : pcap_devices_)
     {
@@ -223,6 +229,19 @@ namespace Udpcap
       return false;
     }
 
+    // Lock the lists of open pcap devices in read-mode. We may use the handles, but not modify the lists themselfes.
+    const std::shared_lock<std::shared_mutex> pcap_devices_lists_lock(pcap_devices_lists_mutex_);
+
+    {
+      const std::lock_guard<std::mutex> pcap_callback_lock(pcap_devices_callback_mutex_);
+      if (pcap_devices_closed_)
+      {
+        // No open devices => fail!
+        LOG_DEBUG("Has Pending Datagrams error: Socket has been closed.");
+        return false;
+      }
+    }
+
     if (pcap_win32_handles_.empty())
     {
       // No open devices => fail!
@@ -245,12 +264,12 @@ namespace Udpcap
   }
 
 
-  std::vector<char> UdpcapSocketPrivate::receiveDatagram(HostAddress* source_address, uint16_t* source_port)
+  std::vector<char> UdpcapSocketPrivate::receiveDatagram_OLD(HostAddress* source_address, uint16_t* source_port)
   {
-    return receiveDatagram(INFINITE, source_address, source_port);
+    return receiveDatagram_OLD(INFINITE, source_address, source_port);
   }
 
-  std::vector<char> UdpcapSocketPrivate::receiveDatagram(unsigned long timeout_ms, HostAddress* source_address, uint16_t* source_port)
+  std::vector<char> UdpcapSocketPrivate::receiveDatagram_OLD(unsigned long timeout_ms, HostAddress* source_address, uint16_t* source_port)
   {
     if (!is_valid_)
     {
@@ -265,6 +284,9 @@ namespace Udpcap
       LOG_DEBUG("Receive error: Socket is not bound");
       return{};
     }
+
+    // Lock the lists of open pcap devices in read-mode. We may use the handles, but not modify the lists themselfes.
+    const std::shared_lock<std::shared_mutex> pcap_devices_lists_lock(pcap_devices_lists_mutex_);
 
     if (pcap_win32_handles_.empty())
     {
@@ -302,16 +324,29 @@ namespace Udpcap
         }
       }
 
+      std::cerr << "WaitForMultipleObjects START...\n";
       const DWORD wait_result = WaitForMultipleObjects(num_handles, pcap_win32_handles_.data(), static_cast<BOOL>(false), remaining_time_to_wait_ms);
+      std::cerr << "WaitForMultipleObjects END...\n";
 
       if ((wait_result >= WAIT_OBJECT_0) && wait_result <= (WAIT_OBJECT_0 + num_handles - 1))
       {
         const int dev_index = (wait_result - WAIT_OBJECT_0);
         
-        callback_args.link_type_     = static_cast<pcpp::LinkLayerType>(pcap_datalink(pcap_devices_[dev_index].pcap_handle_));
-        callback_args.ip_reassembly_ = ip_reassembly_[dev_index].get();
+        {
+          // Lock the callback lock. While the callback is running, we cannot close the pcap handle, as that may invalidate the data pointer.
+          const std::lock_guard<std::mutex> pcap_devices_callback_lock(pcap_devices_callback_mutex_);
 
-        pcap_dispatch(pcap_devices_[dev_index].pcap_handle_, 1, UdpcapSocketPrivate::PacketHandlerVector, reinterpret_cast<u_char*>(&callback_args));
+          if (pcap_devices_closed_)
+          {
+            // TODO: Return an error
+            return {};
+          }
+
+          callback_args.link_type_     = static_cast<pcpp::LinkLayerType>(pcap_datalink(pcap_devices_[dev_index].pcap_handle_));
+          callback_args.ip_reassembly_ = pcap_devices_ip_reassembly_[dev_index].get();
+
+          pcap_dispatch(pcap_devices_[dev_index].pcap_handle_, 100, UdpcapSocketPrivate::PacketHandlerVector, reinterpret_cast<u_char*>(&callback_args));
+        }
 
         if (callback_args.success_)
         {
@@ -329,19 +364,21 @@ namespace Udpcap
       }
       else if (wait_result == WAIT_FAILED)
       {
-        LOG_DEBUG("Receive error: WAIT_FAILED: " + std::to_string(GetLastError()));
+        LOG_DEBUG("Receive error: WAIT_FAILED: " + std::system_category().message(GetLastError()));
+        // TODO: Check if I can always just return here. This definitively happens when I close the socket, so I MUST return in certain cases. But I don't know if there may be cases when this happens without closing the socket.
+        return {};
       }
     } while (wait_forever || (std::chrono::steady_clock::now() < wait_until));
 
     return{};
   }
 
-  size_t UdpcapSocketPrivate::receiveDatagram(char* data, size_t max_len, HostAddress* source_address, uint16_t* source_port)
+  size_t UdpcapSocketPrivate::receiveDatagram_OLD(char* data, size_t max_len, HostAddress* source_address, uint16_t* source_port)
   {
-    return receiveDatagram(data, max_len, INFINITE, source_address, source_port);
+    return receiveDatagram_OLD(data, max_len, INFINITE, source_address, source_port);
   }
 
-  size_t UdpcapSocketPrivate::receiveDatagram(char* data, size_t max_len, unsigned long timeout_ms, HostAddress* source_address, uint16_t* source_port)
+  size_t UdpcapSocketPrivate::receiveDatagram_OLD(char* data, size_t max_len, unsigned long timeout_ms, HostAddress* source_address, uint16_t* source_port)
   {
     if (!is_valid_)
     {
@@ -356,6 +393,9 @@ namespace Udpcap
       LOG_DEBUG("Receive error: Socket is not bound");
       return{};
     }
+
+    // Lock the lists of open pcap devices in read-mode. We may use the handles, but not modify the lists themselfes.
+    const std::shared_lock<std::shared_mutex> pcap_devices_list_lock(pcap_devices_lists_mutex_);
 
     if (pcap_win32_handles_.empty())
     {
@@ -398,10 +438,21 @@ namespace Udpcap
       {
         const int dev_index = (wait_result - WAIT_OBJECT_0);
 
-        callback_args.link_type_     = static_cast<pcpp::LinkLayerType>(pcap_datalink(pcap_devices_[dev_index].pcap_handle_));
-        callback_args.ip_reassembly_ = ip_reassembly_[dev_index].get();
+        {
+          // Lock the callback lock. While the callback is running, we cannot close the pcap handle, as that may invalidate the data pointer.
+          const std::lock_guard<std::mutex> pcap_devices_callback__lock(pcap_devices_callback_mutex_);
 
-        pcap_dispatch(pcap_devices_[dev_index].pcap_handle_, 1, UdpcapSocketPrivate::PacketHandlerRawPtr, reinterpret_cast<u_char*>(&callback_args));
+          if (pcap_devices_closed_)
+          {
+            // TODO: Return an error
+            return {};
+          }
+
+          callback_args.link_type_     = static_cast<pcpp::LinkLayerType>(pcap_datalink(pcap_devices_[dev_index].pcap_handle_));
+          callback_args.ip_reassembly_ = pcap_devices_ip_reassembly_[dev_index].get();
+
+          pcap_dispatch(pcap_devices_[dev_index].pcap_handle_, 1, UdpcapSocketPrivate::PacketHandlerRawPtr, reinterpret_cast<u_char*>(&callback_args));
+        }
 
         if (callback_args.success_)
         {
@@ -419,13 +470,143 @@ namespace Udpcap
       }
       else if (wait_result == WAIT_FAILED)
       {
-        LOG_DEBUG("Receive error: WAIT_FAILED: " + std::to_string(GetLastError()));
+        LOG_DEBUG("Receive error: WAIT_FAILED: " + std::system_category().message(GetLastError()));
+        // TODO: Check if I can always just return here. This definitively happens when I close the socket, so I MUST return in certain cases. But I don't know if there may be cases when this happens without closing the socket.
+        return {};
       }
     } while (wait_forever || (std::chrono::steady_clock::now() < wait_until));
 
     return 0;
   }
 
+  size_t UdpcapSocketPrivate::receiveDatagram(char*           data
+                                            , size_t          max_len
+                                            , unsigned long   timeout_ms
+                                            , HostAddress*    source_address
+                                            , uint16_t*       source_port
+                                            , Udpcap::Error&  error)
+  {
+    if (!is_valid_)
+    {
+      // Invalid socket, cannot bind => fail!
+      LOG_DEBUG("Receive error: Socket is invalid");
+      error = Udpcap::Error::NPCAP_NOT_INITIALIZED;
+      return 0;
+    }
+
+    if (!bound_state_)
+    {
+      // Not bound => fail!
+      LOG_DEBUG("Receive error: Socket is not bound");
+      error = Udpcap::Error::NOT_BOUND;
+      return 0;
+    }
+
+    // Check all devices for data
+    {
+      // Variable to store the result
+      pcap_pkthdr*  packet_header (nullptr);
+      const u_char* packet_data   (nullptr);
+
+      // Lock the lists of open pcap devices in read-mode. We may use the handles, but not modify the lists themselfes.
+      const std::shared_lock<std::shared_mutex> pcap_devices_list_lock(pcap_devices_lists_mutex_);
+
+      // Check for data on pcap devices until we are either out of time or have
+      // received a datagaram. A datagram may consist of multiple packaets in
+      // case of IP Fragmentation.
+      while (true) // TODO: respect the timeout parameter
+      {
+        bool received_any_data = false;
+
+        {
+          // Lock the callback lock. While the callback is running, we cannot close the pcap handle, as that may invalidate the data pointer.
+          const std::lock_guard<std::mutex> pcap_devices_callback_lock(pcap_devices_callback_mutex_);
+
+          // Check if the socket is closed and return an error
+          if (pcap_devices_closed_)
+          {
+            error = Udpcap::Error::SOCKET_CLOSED;
+            return 0;
+          }
+
+          // Iterate through all devices and check if they have data
+          for (const auto& pcap_dev : pcap_devices_)
+          {
+            CallbackArgsRawPtr callback_args(data, max_len, source_address, source_port, bound_port_, pcpp::LinkLayerType::LINKTYPE_NULL);
+
+            int pcap_next_packet_errorcode = pcap_next_ex(pcap_dev.pcap_handle_, &packet_header, &packet_data);
+
+            if (pcap_next_packet_errorcode == 1)
+            {
+              received_any_data = true;
+
+              // Success!
+              PacketHandlerRawPtr(reinterpret_cast<unsigned char*>(&callback_args), packet_header, packet_data);
+
+              if (callback_args.success_)
+              {
+                // Only return datagram if we successfully received a packet. Otherwise, we will continue receiving data, if there is time left.
+                error = Udpcap::Error::OK;
+                return callback_args.bytes_copied_;
+              }
+            }
+            else
+            {
+              // TODO: Handle errors coming from pcap.
+            }
+          }
+        }
+
+        // Use WaitForMultipleObjects in order to wait for data on the pcap
+        // devices. Only wait for data, if we haven't received any data in the
+        // last loop. The Win32 event will be resetted after we got notified,
+        // regardless of the amount of packets that are in the buffer. Thus, we
+        // cannot use the event to always check / wait for new data, as there
+        // may still be data left in the buffer without the event being set.
+        if (!received_any_data)
+        {
+          // TODO: make WaitForMultipleObjects use the timeout
+          unsigned long remaining_time_to_wait_ms = INFINITE;
+          //unsigned long remaining_time_to_wait_ms = 0;
+          //if (wait_forever)
+          //{
+          //  remaining_time_to_wait_ms = INFINITE;
+          //}
+          //else
+          //{
+          //  auto now = std::chrono::steady_clock::now();
+          //  if (now < wait_until)
+          //  {
+          //    remaining_time_to_wait_ms = static_cast<unsigned long>(std::chrono::duration_cast<std::chrono::milliseconds>(wait_until - now).count());
+          //  }
+          //}
+
+          
+          DWORD num_handles = static_cast<DWORD>(pcap_win32_handles_.size());
+          if (num_handles > MAXIMUM_WAIT_OBJECTS)
+          {
+            LOG_DEBUG("WARNING: Too many open Adapters. " + std::to_string(num_handles) + " adapters are open, only " + std::to_string(MAXIMUM_WAIT_OBJECTS) + " are supported.");
+            num_handles = MAXIMUM_WAIT_OBJECTS;
+          }
+
+          const DWORD wait_result = WaitForMultipleObjects(num_handles, pcap_win32_handles_.data(), static_cast<BOOL>(false), remaining_time_to_wait_ms);
+
+          if ((wait_result >= WAIT_OBJECT_0) && wait_result <= (WAIT_OBJECT_0 + num_handles - 1))
+          {
+            // SUCCESS! Some event is notified! We could actually check which
+            // event it is, in order to read data from that specific event. But
+            // it is way easier to just let the code above run again and check
+            // all pcap devices for data.
+            continue;
+          }
+          else
+          {
+            // TODO: Handle errors, especially closed and timeout errors
+          }
+        }
+      }
+    }
+  }
 
   bool UdpcapSocketPrivate::joinMulticastGroup(const HostAddress& group_address)
   {
@@ -463,7 +644,7 @@ namespace Udpcap
     multicast_groups_.emplace(group_address);
 
     // Update the capture filters, so the devices will capture the multicast traffic
-    updateAllCaptureFilters();
+    updateAllCaptureFilters(); // TODO: I probably need to protect the pcap_devices_ list with a mutex here
 
     if (multicast_loopback_enabled_)
     {
@@ -499,11 +680,10 @@ namespace Udpcap
     multicast_groups_.erase(group_it);
 
     // Update all capture filtes
-    updateAllCaptureFilters();
+    updateAllCaptureFilters();  // TODO: I probably need to protect the pcap_devices_ list with a mutex here
 
     return true;
   }
-
 
   void UdpcapSocketPrivate::setMulticastLoopbackEnabled(bool enabled)
   {
@@ -521,7 +701,7 @@ namespace Udpcap
       kickstartLoopbackMulticast();
     }
 
-    updateAllCaptureFilters();
+    updateAllCaptureFilters(); // TODO: I probably need to protect the pcap_devices_ list with a mutex here
   }
 
   bool UdpcapSocketPrivate::isMulticastLoopbackEnabled() const
@@ -532,18 +712,45 @@ namespace Udpcap
   void UdpcapSocketPrivate::close()
   {
     // TODO: make close thread safe, so one thread can wait for data while another thread closes the socket
-    for (auto& pcap_dev : pcap_devices_)
+    // TODO: 2024-01-30: Check if this now is actually thread safe
+
     {
-      LOG_DEBUG(std::string("Closing ") + pcap_dev.device_name_);
-      pcap_close(pcap_dev.pcap_handle_);
+      // Lock the lists of open pcap devices in read-mode. We may use the handles,
+      // but not modify the lists themselfes. This is in order to assure that the
+      // ReceiveDatagram function still has all pcap devices available after
+      // returning from WaitForMultipleObjects.
+      const std::shared_lock<std::shared_mutex> pcap_devices_lists_lock(pcap_devices_lists_mutex_);
+
+      {
+        // Lock the callback lock. While the callback is running, we cannot close
+        // the pcap handle, as that may invalidate the data pointer.
+        const std::lock_guard<std::mutex> pcap_callback_lock(pcap_devices_callback_mutex_);
+        pcap_devices_closed_ = true; //todo: must i protect this variable with the lists lock or the callback lock
+        for (auto& pcap_dev : pcap_devices_)
+        {
+          LOG_DEBUG(std::string("Closing ") + pcap_dev.device_name_);
+          pcap_close(pcap_dev.pcap_handle_);
+        }
+      }
     }
-    pcap_devices_      .clear();
-    pcap_win32_handles_.clear();
-    ip_reassembly_     .clear();
+
+    {
+      // Lock the lists of open pcap devices in write-mode. We may now modify the lists themselfes.
+      const std::unique_lock<std::shared_mutex> pcap_devices_lists_lock(pcap_devices_lists_mutex_);
+      pcap_devices_              .clear();
+      pcap_win32_handles_        .clear();
+      pcap_devices_ip_reassembly_.clear();
+    }
 
     bound_state_ = false;
     bound_port_ = 0;
     bound_address_ = HostAddress::Invalid();
+  }
+
+  bool UdpcapSocketPrivate::isClosed() const
+  {
+    std::lock_guard<std::mutex> pcap_callback_lock(pcap_devices_callback_mutex_);
+    return pcap_devices_closed_;
   }
 
   //////////////////////////////////////////
@@ -647,7 +854,7 @@ namespace Udpcap
     }
   }
 
-  bool UdpcapSocketPrivate::openPcapDevice(const std::string& device_name)
+  bool UdpcapSocketPrivate::openPcapDevice_nolock(const std::string& device_name)
   {
     std::array<char, PCAP_ERRBUF_SIZE> errbuf{};
 
@@ -663,12 +870,15 @@ namespace Udpcap
     pcap_set_promisc(pcap_handle, 1 /*true*/); // We only want Packets destined for this adapter. We are not interested in others.
     pcap_set_immediate_mode(pcap_handle, 1 /*true*/);
 
+    std::array<char, PCAP_ERRBUF_SIZE> pcap_setnonblock_errbuf{};
+    pcap_setnonblock(pcap_handle, 1 /*true*/,pcap_setnonblock_errbuf.data());
+
     if (receive_buffer_size_ > 0)
     {
-      pcap_set_buffer_size(pcap_handle, receive_buffer_size_);
+      pcap_set_buffer_size(pcap_handle, receive_buffer_size_); // TODO: the buffer size should probably not be zero by default. Currently (2024-01-31) it is.
     }
 
-    const int errorcode = pcap_activate(pcap_handle);
+    const int errorcode = pcap_activate(pcap_handle); // TODO : If pcap_activate() fails, the pcap_t * is not closed and freed; it should be closed using pcap_close(3PCAP). 
     switch (errorcode)
     {
     case 0:
@@ -705,9 +915,9 @@ namespace Udpcap
 
     const PcapDev pcap_dev(pcap_handle, IsLoopbackDevice(device_name), device_name);
    
-    pcap_devices_      .push_back(pcap_dev);
-    pcap_win32_handles_.push_back(pcap_getevent(pcap_handle));
-    ip_reassembly_     .emplace_back(std::make_unique<Udpcap::IpReassembly>(std::chrono::seconds(5)));
+    pcap_devices_              .push_back(pcap_dev);
+    pcap_win32_handles_        .push_back(pcap_getevent(pcap_handle));
+    pcap_devices_ip_reassembly_.emplace_back(std::make_unique<Udpcap::IpReassembly>(std::chrono::seconds(5)));
 
     return true;
   }
@@ -788,7 +998,7 @@ namespace Udpcap
       if (pcap_setfilter(pcap_dev.pcap_handle_, &filter_program) == PCAP_ERROR)
       {
         pcap_perror(pcap_dev.pcap_handle_, ("UdpcapSocket ERROR: Unable to set filter \"" + filter_string + "\"").c_str());
-        pcap_freecode(&filter_program);
+        pcap_freecode(&filter_program); // TODO: Check if I need to free the filter program at other places as well (e.g. destructor)
       }
     }
   }
@@ -803,7 +1013,7 @@ namespace Udpcap
 
   void UdpcapSocketPrivate::kickstartLoopbackMulticast() const
   {
-    const uint16_t kickstart_port = 62000;
+    constexpr uint16_t kickstart_port = 62000;
 
     asio::io_context iocontext;
     asio::ip::udp::socket kickstart_socket(iocontext);
@@ -846,6 +1056,7 @@ namespace Udpcap
 
   void UdpcapSocketPrivate::PacketHandlerVector(unsigned char* param, const struct pcap_pkthdr* header, const unsigned char* pkt_data)
   {
+    std::cerr << "PacketHandlerVector\n";
     CallbackArgsVector* callback_args = reinterpret_cast<CallbackArgsVector*>(param);
 
     pcpp::RawPacket       rawPacket(pkt_data, header->caplen, header->ts, false, callback_args->link_type_);

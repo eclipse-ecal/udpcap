@@ -21,6 +21,7 @@
 
 #include <udpcap/host_address.h>
 #include <udpcap/udpcap_export.h>
+#include <udpcap/error.h>
 
 #include <vector>
 #include <memory>
@@ -134,45 +135,48 @@ namespace Udpcap
     UDPCAP_EXPORT bool hasPendingDatagrams() const;
 
     /**
-     * @brief Blocks until A packet arives and returns it as char-vector
-     */
-    UDPCAP_EXPORT std::vector<char> receiveDatagram(HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
-
-    /**
-     * @brief Blocks for the given time until a packet arives and returns it as char-vector
-     *
-     * If the socket is not bound, this method will return immediatelly.
-     * If a source_adress or source_port is provided, these will be filled with
-     * the according information from the packet. If the given time elapses
-     * before a datagram was available, an empty vector is returned.
-     *
-     * @param timeout_ms     [in]:  Maximum time to wait for a datagram in ms
-     * @param source_address [out]: the sender address of the datagram
-     * @param source_port    [out]: the sender port of the datagram
-     *
-     * @return The datagram binary data
-     */
-    UDPCAP_EXPORT std::vector<char> receiveDatagram(unsigned long timeout_ms, HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
-
-    UDPCAP_EXPORT size_t receiveDatagram(char* data, size_t max_len, HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
-
-    /**
      * @brief Blocks for the given time until a packet arives and copies it to the given memory
      *
      * If the socket is not bound, this method will return immediatelly.
      * If a source_adress or source_port is provided, these will be filled with
      * the according information from the packet. If the given time elapses
      * before a datagram was available, no data is copied and 0 is returned.
+     * 
+     * TODO: Document which error occurs in which case
      *
      * @param data           [out]: The destination memory
      * @param max_len        [in]:  The maximum bytes available at the destination
      * @param timeout_ms     [in]:  Maximum time to wait for a datagram in ms
      * @param source_address [out]: the sender address of the datagram
      * @param source_port    [out]: the sender port of the datagram
+     * @param error          [out]: The error that occured
      *
      * @return The number of bytes copied to the data pointer
      */
-    UDPCAP_EXPORT size_t receiveDatagram(char* data, size_t max_len, unsigned long timeout_ms, HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
+    UDPCAP_EXPORT size_t receiveDatagram(char*            data
+                                        , size_t          max_len
+                                        , unsigned long   timeout_ms
+                                        , HostAddress*    source_address
+                                        , uint16_t*       source_port
+                                        , Udpcap::Error&  error);
+
+    // TODO: Copy documentation here
+    UDPCAP_EXPORT size_t receiveDatagram(char*            data
+                                        , size_t          max_len
+                                        , unsigned long   timeout_ms
+                                        , Udpcap::Error&  error);
+
+    // TODO: Copy documentation here
+    UDPCAP_EXPORT size_t receiveDatagram(char*            data
+                                        , size_t          max_len
+                                        , Udpcap::Error&  error);
+
+    // TODO: Copy documentation here
+    UDPCAP_EXPORT size_t receiveDatagram(char*            data
+                                        , size_t          max_len
+                                        , HostAddress*    source_address
+                                        , uint16_t*       source_port
+                                        , Udpcap::Error&  error);
 
     /**
      * @brief Joins the given multicast group
@@ -221,6 +225,13 @@ namespace Udpcap
      * @brief Closes the socket
      */
     UDPCAP_EXPORT void close();
+
+    /**
+     * @brief Returns whether the socket is closed
+     * 
+     * @return true, if the socket is closed
+     */
+    UDPCAP_EXPORT bool isClosed() const;
 
   private:
     /** This is where the actual implementation lies. But the implementation has
