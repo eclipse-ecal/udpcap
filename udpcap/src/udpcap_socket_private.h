@@ -119,7 +119,7 @@ namespace Udpcap
     static const int MAX_PACKET_SIZE = 65536; // Npcap Doc: A snapshot length of 65535 should be sufficient, on most if not all networks, to capture all the data available from the packet. 
 
     UdpcapSocketPrivate();
-    ~UdpcapSocketPrivate() = default;
+    ~UdpcapSocketPrivate();
 
     // Copy
     UdpcapSocketPrivate(UdpcapSocketPrivate const&)             = delete;
@@ -145,6 +145,7 @@ namespace Udpcap
     std::vector<char> receiveDatagram_OLD(HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
     std::vector<char> receiveDatagram_OLD(unsigned long timeout_ms, HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
 
+    // TODO: cleanup
     size_t receiveDatagram_OLD(char* data, size_t max_len, HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
     size_t receiveDatagram_OLD(char* data, size_t max_len, unsigned long timeout_ms, HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
 

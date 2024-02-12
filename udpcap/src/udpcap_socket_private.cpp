@@ -51,6 +51,10 @@ namespace Udpcap
   {
   }
 
+  UdpcapSocketPrivate::~UdpcapSocketPrivate()
+  {
+    close();
+  }
   //UdpcapSocketPrivate::~UdpcapSocketPrivate()
   //{
   //  // @todo: reinvestigate why it crashes on close. (Maybe check if i have implemented copy / move constructors properly)
@@ -486,6 +490,17 @@ namespace Udpcap
                                             , uint16_t*       source_port
                                             , Udpcap::Error&  error)
   {
+    // calculate until when to wait. If timeout_ms is 0 or smaller, we will wait forever.
+    std::chrono::steady_clock::time_point wait_until;
+    if (timeout_ms < 0)
+    {
+      wait_until = std::chrono::steady_clock::time_point::max();
+    }
+    else
+    {
+      wait_until = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+    }
+
     if (!is_valid_)
     {
       // Invalid socket, cannot bind => fail!
@@ -529,7 +544,16 @@ namespace Udpcap
             return 0;
           }
 
-          // Iterate through all devices and check if they have data
+          // Iterate through all devices and check if they have data. There is
+          // no other API (that I know of) to check whether data is available on
+          // a PCAP device other than trying to claim it. There is a very valid
+          // possibility that no device will have any data available. In that
+          // case, we use the native Win32 event handles to wait for new data
+          // becoming available. We however cannot do that here before trying to
+          // receive the data, as waiting on the event would clear the event
+          // state and we don't have information about the amount of data being
+          // availabe (e.g. there are 2 packets available, but the event is
+          // cleared after we waited for the first one).
           for (const auto& pcap_dev : pcap_devices_)
           {
             CallbackArgsRawPtr callback_args(data, max_len, source_address, source_port, bound_port_, pcpp::LinkLayerType::LINKTYPE_NULL);
@@ -565,22 +589,25 @@ namespace Udpcap
         // may still be data left in the buffer without the event being set.
         if (!received_any_data)
         {
-          // TODO: make WaitForMultipleObjects use the timeout
-          unsigned long remaining_time_to_wait_ms = INFINITE;
-          //unsigned long remaining_time_to_wait_ms = 0;
-          //if (wait_forever)
-          //{
-          //  remaining_time_to_wait_ms = INFINITE;
-          //}
-          //else
-          //{
-          //  auto now = std::chrono::steady_clock::now();
-          //  if (now < wait_until)
-          //  {
-          //    remaining_time_to_wait_ms = static_cast<unsigned long>(std::chrono::duration_cast<std::chrono::milliseconds>(wait_until - now).count());
-          //  }
-          //}
+          // Check if we are out of time and return an error if so.
+          auto now = std::chrono::steady_clock::now();
+          if (now >= wait_until)
+          {
+            error = Udpcap::Error::TIMEOUT;
+            return 0;
+          }
 
+          // If we are not out of time, we calculate how many milliseconds we are allowed to wait for new data.
+          unsigned long remaining_time_to_wait_ms = 0;
+          const bool wait_forever = (timeout_ms < 0); // Original parameter "timeout_ms" is negative if we want to wait forever
+          if (wait_forever)
+          {
+            remaining_time_to_wait_ms = INFINITE;
+          }
+          else
+          {
+            remaining_time_to_wait_ms = static_cast<unsigned long>(std::chrono::duration_cast<std::chrono::milliseconds>(wait_until - now).count());
+          }
           
           DWORD num_handles = static_cast<DWORD>(pcap_win32_handles_.size());
           if (num_handles > MAXIMUM_WAIT_OBJECTS)
@@ -599,9 +626,24 @@ namespace Udpcap
             // all pcap devices for data.
             continue;
           }
-          else
+          else if ((wait_result >= WAIT_ABANDONED_0) && wait_result <= (WAIT_ABANDONED_0 + num_handles - 1))
           {
-            // TODO: Handle errors, especially closed and timeout errors
+            error = Udpcap::Error(Udpcap::Error::GENERIC_ERROR, "Internal error \"WAIT_ABANDONED\" while waiting for data: " + std::system_category().message(GetLastError()));
+            LOG_DEBUG(error.ToString()); // This should never happen in a proper application
+          }
+          else if (wait_result == WAIT_TIMEOUT)
+          {
+            // LOG_DEBUG("Receive error: WAIT_TIMEOUT");
+            error = Udpcap::Error::TIMEOUT;
+            return 0;
+          }
+          else if (wait_result == WAIT_FAILED)
+          {
+            // This probably indicates a closed socket. But we don't need to
+            // check it here, we can simply continue the loop, as the first
+            // thing the loop does is checking for a closed socket.
+            LOG_DEBUG("Receive error: WAIT_FAILED: " + std::system_category().message(GetLastError()));
+            continue;
           }
         }
       }
@@ -995,11 +1037,13 @@ namespace Udpcap
     else
     {
       // Set the filter
-      if (pcap_setfilter(pcap_dev.pcap_handle_, &filter_program) == PCAP_ERROR)
+      auto set_filter_error = pcap_setfilter(pcap_dev.pcap_handle_, &filter_program);
+      if (set_filter_error == PCAP_ERROR)
       {
         pcap_perror(pcap_dev.pcap_handle_, ("UdpcapSocket ERROR: Unable to set filter \"" + filter_string + "\"").c_str());
-        pcap_freecode(&filter_program); // TODO: Check if I need to free the filter program at other places as well (e.g. destructor)
       }
+
+      pcap_freecode(&filter_program);
     }
   }
 

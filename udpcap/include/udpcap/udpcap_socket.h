@@ -137,7 +137,7 @@ namespace Udpcap
     /**
      * @brief Blocks for the given time until a packet arives and copies it to the given memory
      *
-     * If the socket is not bound, this method will return immediatelly.
+     * If the socket is not bound, this method will return immediately.
      * If a source_adress or source_port is provided, these will be filled with
      * the according information from the packet. If the given time elapses
      * before a datagram was available, no data is copied and 0 is returned.
@@ -146,7 +146,7 @@ namespace Udpcap
      *
      * @param data           [out]: The destination memory
      * @param max_len        [in]:  The maximum bytes available at the destination
-     * @param timeout_ms     [in]:  Maximum time to wait for a datagram in ms
+     * @param timeout_ms     [in]:  Maximum time to wait for a datagram in ms. If -1, the method will block until a datagram is available
      * @param source_address [out]: the sender address of the datagram
      * @param source_port    [out]: the sender port of the datagram
      * @param error          [out]: The error that occured
