@@ -19,7 +19,11 @@
 
 #include "udpcap_socket_private.h"
 
-#include "udpcap/npcap_helpers.h"
+#include <udpcap/error.h>
+#include <udpcap/host_address.h>
+#include <udpcap/npcap_helpers.h>
+
+#include "ip_reassembly.h"
 #include "log_debug.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -27,13 +31,23 @@
 
 #include <ntddndis.h>       // User-space defines for NDIS driver communication
 
-#include <sstream>
-#include <iostream>
 #include <algorithm>
-#include <system_error>
+#include <array>
+#include <chrono>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <iostream>
+#include <memory>
 #include <mutex>
+#include <shared_mutex>
+#include <sstream>
+#include <string>
+#include <system_error>
+#include <utility>
+#include <vector>
 
-#include <asio.hpp>
+#include <asio.hpp> // IWYU pragma: keep
 
 namespace Udpcap
 {
@@ -93,7 +107,7 @@ namespace Udpcap
 
     // Valid address => Try to bind to address!
     
-    std::unique_lock<std::shared_mutex> pcap_devices_lists_lock(pcap_devices_lists_mutex_);
+    const std::unique_lock<std::shared_mutex> pcap_devices_lists_lock(pcap_devices_lists_mutex_);
 
     if (local_address.isLoopback())
     {
@@ -269,7 +283,7 @@ namespace Udpcap
 
   size_t UdpcapSocketPrivate::receiveDatagram(char*           data
                                             , size_t          max_len
-                                            , unsigned long   timeout_ms
+                                            , long long       timeout_ms
                                             , HostAddress*    source_address
                                             , uint16_t*       source_port
                                             , Udpcap::Error&  error)
@@ -343,7 +357,7 @@ namespace Udpcap
           {
             CallbackArgsRawPtr callback_args(data, max_len, source_address, source_port, bound_port_, pcpp::LinkLayerType::LINKTYPE_NULL);
 
-            int pcap_next_packet_errorcode = pcap_next_ex(pcap_dev.pcap_handle_, &packet_header, &packet_data);
+            const int pcap_next_packet_errorcode = pcap_next_ex(pcap_dev.pcap_handle_, &packet_header, &packet_data);
 
             if (pcap_next_packet_errorcode == 1)
             {
@@ -576,7 +590,7 @@ namespace Udpcap
 
   bool UdpcapSocketPrivate::isClosed() const
   {
-    std::lock_guard<std::mutex> pcap_callback_lock(pcap_devices_callback_mutex_);
+    const std::lock_guard<std::mutex> pcap_callback_lock(pcap_devices_callback_mutex_);
     return pcap_devices_closed_;
   }
 

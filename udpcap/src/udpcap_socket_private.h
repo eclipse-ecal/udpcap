@@ -22,12 +22,12 @@
 #include <udpcap/host_address.h>
 #include <udpcap/error.h>
 
-#include <vector>
-#include <set>
-#include <memory>
 #include <chrono>
 #include <deque>
+#include <memory>
+#include <set>
 #include <shared_mutex>
+#include <vector>
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -123,7 +123,7 @@ namespace Udpcap
 
     size_t receiveDatagram(char*            data
                           , size_t          max_len
-                          , unsigned long   timeout_ms
+                          , long long       timeout_ms
                           , HostAddress*    source_address
                           , uint16_t*       source_port
                           , Udpcap::Error&  error);
@@ -144,7 +144,7 @@ namespace Udpcap
     static std::pair<std::string, std::string> getDeviceByIp(const HostAddress& ip);
     static std::vector<std::pair<std::string, std::string>> getAllDevices();
 
-    static std::string getMac(pcap_t* const pcap_handle);
+    static std::string getMac(pcap_t* pcap_handle);
 
     bool openPcapDevice_nolock(const std::string& device_name);
 

@@ -29,8 +29,8 @@
 #endif // _MSC_VER
 
 #include <chrono>
-#include <unordered_map>
 #include <memory>
+#include <unordered_map>
 
 namespace Udpcap
 {

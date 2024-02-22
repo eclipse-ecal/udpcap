@@ -19,9 +19,11 @@
 
 #pragma once
 
+// IWYU pragma: begin_exports
+#include <udpcap/error.h>
 #include <udpcap/host_address.h>
 #include <udpcap/udpcap_export.h>
-#include <udpcap/error.h>
+// IWYU pragma: end_exports
 
 #include <vector>
 #include <memory>
@@ -155,7 +157,7 @@ namespace Udpcap
      */
     UDPCAP_EXPORT size_t receiveDatagram(char*            data
                                         , size_t          max_len
-                                        , unsigned long   timeout_ms
+                                        , long long       timeout_ms
                                         , HostAddress*    source_address
                                         , uint16_t*       source_port
                                         , Udpcap::Error&  error);
@@ -163,7 +165,7 @@ namespace Udpcap
     // TODO: Copy documentation here
     UDPCAP_EXPORT size_t receiveDatagram(char*            data
                                         , size_t          max_len
-                                        , unsigned long   timeout_ms
+                                        , long long       timeout_ms
                                         , Udpcap::Error&  error);
 
     // TODO: Copy documentation here

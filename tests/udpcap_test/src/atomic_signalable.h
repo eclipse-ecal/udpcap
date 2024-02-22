@@ -27,7 +27,7 @@ public:
 
   atomic_signalable<T>& operator=(const T new_value)
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    const std::lock_guard<std::mutex> lock(mutex);
     value = new_value;
     cv.notify_all();
     return *this;
@@ -35,7 +35,7 @@ public:
 
   T operator++()
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    const std::lock_guard<std::mutex> lock(mutex);
     T newValue = ++value;
     cv.notify_all();
     return newValue;
@@ -43,7 +43,7 @@ public:
 
   T operator++(T) 
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    const std::lock_guard<std::mutex> lock(mutex);
     T oldValue = value++;
     cv.notify_all();
     return oldValue;
@@ -51,7 +51,7 @@ public:
 
   T operator--()
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    const std::lock_guard<std::mutex> lock(mutex);
     T newValue = --value;
     cv.notify_all();
     return newValue;
@@ -59,7 +59,7 @@ public:
 
   T operator--(T) 
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    const std::lock_guard<std::mutex> lock(mutex);
     T oldValue = value--;
     cv.notify_all();
     return oldValue;
@@ -67,7 +67,7 @@ public:
 
   T operator+=(const T& other) 
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    const std::lock_guard<std::mutex> lock(mutex);
     value += other;
     cv.notify_all();
     return value;
@@ -75,7 +75,7 @@ public:
 
   T operator-=(const T& other) 
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    const std::lock_guard<std::mutex> lock(mutex);
     value -= other;
     cv.notify_all();
     return value;
@@ -83,7 +83,7 @@ public:
 
   T operator*=(const T& other) 
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    const std::lock_guard<std::mutex> lock(mutex);
     value *= other;
     cv.notify_all();
     return value;
@@ -91,7 +91,7 @@ public:
 
   T operator/=(const T& other) 
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    const std::lock_guard<std::mutex> lock(mutex);
     value /= other;
     cv.notify_all();
     return value;
@@ -99,7 +99,7 @@ public:
 
   T operator%=(const T& other)
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    const std::lock_guard<std::mutex> lock(mutex);
     value %= other;
     cv.notify_all();
     return value;
@@ -114,13 +114,13 @@ public:
 
   T get() const
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    const std::lock_guard<std::mutex> lock(mutex);
     return value;
   }
 
   bool operator==(T other) const
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    const std::lock_guard<std::mutex> lock(mutex);
     return value == other;
   }
 
@@ -133,31 +133,31 @@ public:
 
   bool operator!=(T other) const
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    const std::lock_guard<std::mutex> lock(mutex);
     return value != other;
   }
 
   bool operator<(T other) const
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    const std::lock_guard<std::mutex> lock(mutex);
     return value < other;
   }
 
   bool operator<=(T other) const
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    const std::lock_guard<std::mutex> lock(mutex);
     return value <= other;
   }
 
   bool operator>(T other) const
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    const std::lock_guard<std::mutex> lock(mutex);
     return value > other;
   }
 
   bool operator>=(T other) const
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    const std::lock_guard<std::mutex> lock(mutex);
     return value >= other;
   }
 

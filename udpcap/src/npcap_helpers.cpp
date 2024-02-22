@@ -19,20 +19,21 @@
 
 #include "udpcap/npcap_helpers.h"
 
-#include <mutex>
-
-#include <tchar.h>
-#include <iostream>
 #include <algorithm>
-#include <sstream>
 #include <array>
-
-#include <locale>
+#include <cctype>
 #include <codecvt>
+#include <cstdio>
+#include <iostream>
+#include <locale>
+#include <mutex>
+#include <sstream>
+#include <string>
+#include <tchar.h>
 
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
+#include <Windows.h> // IWYU pragma: keep
 
 #include <pcap/pcap.h>
 

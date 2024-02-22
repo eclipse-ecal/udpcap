@@ -31,7 +31,7 @@ TEST(udpcap, RAII)
 {
   {
     // Create a udpcap socket
-    Udpcap::UdpcapSocket udpcap_socket;
+    const Udpcap::UdpcapSocket udpcap_socket;
     ASSERT_TRUE(udpcap_socket.isValid());
     // Delete the socket
   }
@@ -45,7 +45,7 @@ TEST(udpcap, RAIIWithClose)
   ASSERT_TRUE(udpcap_socket.isValid());
 
   // bind the socket
-  bool success = udpcap_socket.bind(Udpcap::HostAddress::Any(), 14000);
+  const bool success = udpcap_socket.bind(Udpcap::HostAddress::Any(), 14000);
   ASSERT_TRUE(success);
 
   // Close the socket
@@ -60,7 +60,7 @@ TEST(udpcap, RAIIWithSomebodyWaiting)
   ASSERT_TRUE(udpcap_socket.isValid());
 
   // bind the socket
-  bool success = udpcap_socket.bind(Udpcap::HostAddress::Any(), 14000);
+  const bool success = udpcap_socket.bind(Udpcap::HostAddress::Any(), 14000);
   ASSERT_TRUE(success);
       
   // Blocking receive a datagram
@@ -73,7 +73,7 @@ TEST(udpcap, RAIIWithSomebodyWaiting)
                               Udpcap::Error error = Udpcap::Error::ErrorCode::GENERIC_ERROR;
 
                               // blocking receive
-                              size_t received_bytes =  udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), 0, error);
+                              const size_t received_bytes =  udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), 0, error);
 
                               // Check that we didn't receive any bytes
                               ASSERT_EQ(received_bytes, 0);
@@ -107,7 +107,7 @@ TEST(udpcap, SimpleReceive)
   ASSERT_TRUE(udpcap_socket.isValid());
 
   {
-    bool success = udpcap_socket.bind(Udpcap::HostAddress::Any(), 14000);
+    const bool success = udpcap_socket.bind(Udpcap::HostAddress::Any(), 14000);
     ASSERT_TRUE(success);
   }
 
@@ -124,7 +124,7 @@ TEST(udpcap, SimpleReceive)
                                 received_datagram.resize(65536);
 
                                 // blocking receive
-                                size_t received_bytes = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), &sender_address, &sender_port, error);
+                                const size_t received_bytes = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), &sender_address, &sender_port, error);
                                 received_datagram.resize(received_bytes);
 
                                 // No error must have occurred
@@ -172,7 +172,7 @@ TEST(udpcap, MultipleSmallPackages)
 
   // Bind the udpcap socket to all interfaces
   {
-    bool success = udpcap_socket.bind(Udpcap::HostAddress::Any(), 14000);
+    const bool success = udpcap_socket.bind(Udpcap::HostAddress::Any(), 14000);
     ASSERT_TRUE(success);
   }
 
@@ -188,7 +188,7 @@ TEST(udpcap, MultipleSmallPackages)
                                   received_datagram.resize(65536);
 
                                   // blocking receive
-                                  size_t received_bytes = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), error);
+                                  const size_t received_bytes = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), error);
 
                                   if (error)
                                   {
@@ -249,7 +249,7 @@ TEST(udpcap, SimpleReceiveWithBuffer)
   ASSERT_TRUE(udpcap_socket.isValid());
 
   {
-    bool success = udpcap_socket.bind(Udpcap::HostAddress::LocalHost(), 14000);
+    const bool success = udpcap_socket.bind(Udpcap::HostAddress::LocalHost(), 14000);
     ASSERT_TRUE(success);
   }
 
@@ -317,7 +317,7 @@ TEST(udpcap, DelayedPackageReceiveMultiplePackages)
 
   // Bind the udpcap socket to all interfaces
   {
-    bool success = udpcap_socket.bind(Udpcap::HostAddress::Any(), 14000);
+    const bool success = udpcap_socket.bind(Udpcap::HostAddress::Any(), 14000);
     ASSERT_TRUE(success);
   }
 
@@ -335,7 +335,7 @@ TEST(udpcap, DelayedPackageReceiveMultiplePackages)
                                   std::vector<char> received_datagram;
                                   received_datagram.resize(65536);
 
-                                  size_t bytes_received = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), &sender_address, &sender_port, error);
+                                  const size_t bytes_received = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), &sender_address, &sender_port, error);
                                   received_datagram.resize(bytes_received);
 
                                   if (error)
@@ -396,14 +396,12 @@ TEST(udpcap, DelayedPackageReceiveMultiplePackages)
 // Test the timeout of the receiveDatagram function
 TEST(udpcap, Timeout)
 {
-  atomic_signalable<int> received_messages(0);
-    
   // Create a udpcap socket
   Udpcap::UdpcapSocket udpcap_socket;
   ASSERT_TRUE(udpcap_socket.isValid());
     
   {
-    bool success = udpcap_socket.bind(Udpcap::HostAddress::Any(), 14000);
+    const bool success = udpcap_socket.bind(Udpcap::HostAddress::Any(), 14000);
     ASSERT_TRUE(success);
   }
     
@@ -429,7 +427,7 @@ TEST(udpcap, Timeout)
     auto start_time = std::chrono::steady_clock::now();
 
     // blocking receive with a 100ms timeout
-    size_t received_bytes = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), 100, &sender_address, &sender_port, error);
+    const size_t received_bytes = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), 100, &sender_address, &sender_port, error);
 
     // Take End time
     auto end_time = std::chrono::steady_clock::now();
@@ -450,7 +448,7 @@ TEST(udpcap, Timeout)
     auto start_time = std::chrono::steady_clock::now();
 
     // blocking receive with a 500ms timeout
-    size_t received_bytes = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), 500, &sender_address, &sender_port, error);
+    const size_t received_bytes = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), 500, &sender_address, &sender_port, error);
 
     // Take End time
     auto end_time = std::chrono::steady_clock::now();
@@ -470,7 +468,7 @@ TEST(udpcap, Timeout)
     auto start_time = std::chrono::steady_clock::now();
     
     // blocking receive with a 0ms timeout
-    size_t received_bytes = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), 0, &sender_address, &sender_port, error);
+    const size_t received_bytes = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), 0, &sender_address, &sender_port, error);
     
     // Take End time
     auto end_time = std::chrono::steady_clock::now();
@@ -488,7 +486,7 @@ TEST(udpcap, Timeout)
     auto start_time = std::chrono::steady_clock::now();
         
     // blocking receive with a 0ms timeout
-    size_t received_bytes = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), 0, &sender_address, &sender_port, error);
+    const size_t received_bytes = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), 0, &sender_address, &sender_port, error);
         
     // Take End time
     auto end_time = std::chrono::steady_clock::now();
@@ -525,7 +523,7 @@ TEST(udpcap, ReceiveNotBound)
     Udpcap::Error error = Udpcap::Error::ErrorCode::GENERIC_ERROR;
     
     // blocking receive
-    size_t received_bytes = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), &sender_address, &sender_port, error);
+    const size_t received_bytes = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), &sender_address, &sender_port, error);
     
     // Check if the received datagram is valid and contains "Hello World"
     ASSERT_EQ(received_bytes, 0);
@@ -551,27 +549,27 @@ TEST(udpcap, MulticastReceive)
 
   // Bind the udpcap sockets to all interfaces
   {
-    bool success = udpcap_socket1.bind(Udpcap::HostAddress::Any(), 14000);
+    const bool success = udpcap_socket1.bind(Udpcap::HostAddress::Any(), 14000);
     ASSERT_TRUE(success);
   }
   {
-    bool success = udpcap_socket2.bind(Udpcap::HostAddress::Any(), 14000);
+    const bool success = udpcap_socket2.bind(Udpcap::HostAddress::Any(), 14000);
     ASSERT_TRUE(success);
   }
 
   // Join the multicast group 224.0.0.1 on both sockets
   {
-    bool success = udpcap_socket1.joinMulticastGroup(Udpcap::HostAddress("224.0.0.1"));
+    const bool success = udpcap_socket1.joinMulticastGroup(Udpcap::HostAddress("224.0.0.1"));
     ASSERT_TRUE(success);
   }
   {
-    bool success = udpcap_socket2.joinMulticastGroup(Udpcap::HostAddress("224.0.0.1"));
+    const bool success = udpcap_socket2.joinMulticastGroup(Udpcap::HostAddress("224.0.0.1"));
     ASSERT_TRUE(success);
   }
 
   // Join the multicast group 224.0.0.2 on the second socket
   {
-    bool success = udpcap_socket2.joinMulticastGroup(Udpcap::HostAddress("224.0.0.2"));
+    const bool success = udpcap_socket2.joinMulticastGroup(Udpcap::HostAddress("224.0.0.2"));
     ASSERT_TRUE(success);
   }
 
@@ -598,7 +596,7 @@ TEST(udpcap, MulticastReceive)
                                   std::vector<char> received_datagram;
                                   received_datagram.resize(65536);
     
-                                  size_t bytes_received = udpcap_socket1.receiveDatagram(received_datagram.data(), received_datagram.size(), &sender_address, &sender_port, error);
+                                  const size_t bytes_received = udpcap_socket1.receiveDatagram(received_datagram.data(), received_datagram.size(), &sender_address, &sender_port, error);
                                   received_datagram.resize(bytes_received);
     
                                   if (error)
@@ -635,7 +633,7 @@ TEST(udpcap, MulticastReceive)
                                     std::vector<char> received_datagram;
                                     received_datagram.resize(65536);
         
-                                    size_t bytes_received = udpcap_socket2.receiveDatagram(received_datagram.data(), received_datagram.size(), &sender_address, &sender_port, error);
+                                    const size_t bytes_received = udpcap_socket2.receiveDatagram(received_datagram.data(), received_datagram.size(), &sender_address, &sender_port, error);
                                     received_datagram.resize(bytes_received);
         
                                     if (error)

@@ -29,7 +29,11 @@
 #pragma warning( pop )
 #endif // _MSC_VER
 
+#include <chrono>
+#include <cstddef>
 #include <iostream>
+#include <memory>
+#include <utility>
 
 namespace Udpcap
 {

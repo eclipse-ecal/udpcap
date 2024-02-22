@@ -19,10 +19,12 @@
 
 #pragma once
 
-#include <string>
 #include <mutex>
+#include <string>
 
+// IWYU pragma: begin_exports
 #include <udpcap/udpcap_export.h>
+// IWYU pragma: end_exports
 
 namespace Udpcap
 {

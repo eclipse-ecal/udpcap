@@ -20,7 +20,10 @@
 #pragma once
 
 #include <string>
+
+// IWYU pragma: begin_exports
 #include <udpcap/udpcap_export.h>
+// IWYU pragma: end_exports
 
 namespace Udpcap
 {
@@ -57,7 +60,7 @@ namespace Udpcap
     UDPCAP_EXPORT HostAddress(const std::string& address);
 
     /** @brief Constructs a HostAddress from a 32bit integer in host byte order. */
-    UDPCAP_EXPORT HostAddress(const uint32_t address);
+    UDPCAP_EXPORT HostAddress(uint32_t address);
 
     /** @brief Checks if the Host Address is valid.
      * Invalid HostAddresses are created when providing a wrong IPv4 string,

@@ -24,6 +24,8 @@
 #include <Ws2tcpip.h>
 
 #include <array>
+#include <cstdint>
+#include <string>
 
 namespace Udpcap
 {
@@ -43,7 +45,7 @@ namespace Udpcap
     valid_ = (inet_pton(AF_INET, address.c_str(), (void*)(&ipv4_)) == 1);
   }
 
-  HostAddress::HostAddress(const uint32_t address)
+  HostAddress::HostAddress(uint32_t address)
     : valid_(true)
     , ipv4_(address)
   {}
