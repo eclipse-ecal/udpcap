@@ -267,222 +267,6 @@ namespace Udpcap
     return((wait_result >= WAIT_OBJECT_0) && wait_result <= (WAIT_OBJECT_0 + num_handles - 1));
   }
 
-
-  std::vector<char> UdpcapSocketPrivate::receiveDatagram_OLD(HostAddress* source_address, uint16_t* source_port)
-  {
-    return receiveDatagram_OLD(INFINITE, source_address, source_port);
-  }
-
-  std::vector<char> UdpcapSocketPrivate::receiveDatagram_OLD(unsigned long timeout_ms, HostAddress* source_address, uint16_t* source_port)
-  {
-    if (!is_valid_)
-    {
-      // Invalid socket, cannot bind => fail!
-      LOG_DEBUG("Receive error: Socket is invalid");
-      return {};
-    }
-
-    if (!bound_state_)
-    {
-      // Not bound => fail!
-      LOG_DEBUG("Receive error: Socket is not bound");
-      return{};
-    }
-
-    // Lock the lists of open pcap devices in read-mode. We may use the handles, but not modify the lists themselfes.
-    const std::shared_lock<std::shared_mutex> pcap_devices_lists_lock(pcap_devices_lists_mutex_);
-
-    if (pcap_win32_handles_.empty())
-    {
-      // No open devices => fail!
-      LOG_DEBUG("Receive error: No open devices");
-      return{};
-    }
-
-    DWORD num_handles = static_cast<DWORD>(pcap_win32_handles_.size());
-    if (num_handles > MAXIMUM_WAIT_OBJECTS)
-    {
-      LOG_DEBUG("WARNING: Too many open Adapters. " + std::to_string(num_handles) + " adapters are open, only " + std::to_string(MAXIMUM_WAIT_OBJECTS) + " are supported.");
-      num_handles = MAXIMUM_WAIT_OBJECTS;
-    }
-
-    const bool wait_forever = (timeout_ms == INFINITE);
-    auto wait_until = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
-
-    std::vector<char> datagram;
-    CallbackArgsVector callback_args(&datagram, source_address, source_port, bound_port_, pcpp::LinkLayerType::LINKTYPE_NULL);
-
-    do
-    {
-      unsigned long remaining_time_to_wait_ms = 0;
-      if (wait_forever)
-      {
-        remaining_time_to_wait_ms = INFINITE;
-      }
-      else
-      {
-        auto now = std::chrono::steady_clock::now();
-        if (now < wait_until)
-        {
-          remaining_time_to_wait_ms = static_cast<unsigned long>(std::chrono::duration_cast<std::chrono::milliseconds>(wait_until - now).count());
-        }
-      }
-
-      std::cerr << "WaitForMultipleObjects START...\n";
-      const DWORD wait_result = WaitForMultipleObjects(num_handles, pcap_win32_handles_.data(), static_cast<BOOL>(false), remaining_time_to_wait_ms);
-      std::cerr << "WaitForMultipleObjects END...\n";
-
-      if ((wait_result >= WAIT_OBJECT_0) && wait_result <= (WAIT_OBJECT_0 + num_handles - 1))
-      {
-        const int dev_index = (wait_result - WAIT_OBJECT_0);
-        
-        {
-          // Lock the callback lock. While the callback is running, we cannot close the pcap handle, as that may invalidate the data pointer.
-          const std::lock_guard<std::mutex> pcap_devices_callback_lock(pcap_devices_callback_mutex_);
-
-          if (pcap_devices_closed_)
-          {
-            // TODO: Return an error
-            return {};
-          }
-
-          callback_args.link_type_     = static_cast<pcpp::LinkLayerType>(pcap_datalink(pcap_devices_[dev_index].pcap_handle_));
-          callback_args.ip_reassembly_ = pcap_devices_ip_reassembly_[dev_index].get();
-
-          pcap_dispatch(pcap_devices_[dev_index].pcap_handle_, 100, UdpcapSocketPrivate::PacketHandlerVector, reinterpret_cast<u_char*>(&callback_args));
-        }
-
-        if (callback_args.success_)
-        {
-          // Only return datagram if we successfully received a packet. Otherwise, we will continue receiving data, if there is time left.
-          return datagram;
-        }
-      }
-      else if ((wait_result >= WAIT_ABANDONED_0) && wait_result <= (WAIT_ABANDONED_0 + num_handles - 1))
-      {
-        LOG_DEBUG("Receive error: WAIT_ABANDONED");
-      }
-      else if (wait_result == WAIT_TIMEOUT)
-      {
-        // LOG_DEBUG("Receive error: WAIT_TIMEOUT");
-      }
-      else if (wait_result == WAIT_FAILED)
-      {
-        LOG_DEBUG("Receive error: WAIT_FAILED: " + std::system_category().message(GetLastError()));
-        // TODO: Check if I can always just return here. This definitively happens when I close the socket, so I MUST return in certain cases. But I don't know if there may be cases when this happens without closing the socket.
-        return {};
-      }
-    } while (wait_forever || (std::chrono::steady_clock::now() < wait_until));
-
-    return{};
-  }
-
-  size_t UdpcapSocketPrivate::receiveDatagram_OLD(char* data, size_t max_len, HostAddress* source_address, uint16_t* source_port)
-  {
-    return receiveDatagram_OLD(data, max_len, INFINITE, source_address, source_port);
-  }
-
-  size_t UdpcapSocketPrivate::receiveDatagram_OLD(char* data, size_t max_len, unsigned long timeout_ms, HostAddress* source_address, uint16_t* source_port)
-  {
-    if (!is_valid_)
-    {
-      // Invalid socket, cannot bind => fail!
-      LOG_DEBUG("Receive error: Socket is invalid");
-      return{};
-    }
-
-    if (!bound_state_)
-    {
-      // Not bound => fail!
-      LOG_DEBUG("Receive error: Socket is not bound");
-      return{};
-    }
-
-    // Lock the lists of open pcap devices in read-mode. We may use the handles, but not modify the lists themselfes.
-    const std::shared_lock<std::shared_mutex> pcap_devices_list_lock(pcap_devices_lists_mutex_);
-
-    if (pcap_win32_handles_.empty())
-    {
-      // No open devices => fail!
-      LOG_DEBUG("Receive error: No open devices");
-      return{};
-    }
-
-    DWORD num_handles = static_cast<DWORD>(pcap_win32_handles_.size());
-    if (num_handles > MAXIMUM_WAIT_OBJECTS)
-    {
-      LOG_DEBUG("WARNING: Too many open Adapters. " + std::to_string(num_handles) + " adapters are open, only " + std::to_string(MAXIMUM_WAIT_OBJECTS) + " are supported.");
-      num_handles = MAXIMUM_WAIT_OBJECTS;
-    }
-
-    const bool wait_forever = (timeout_ms == INFINITE);
-    auto wait_until = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
-
-    CallbackArgsRawPtr callback_args(data, max_len, source_address, source_port, bound_port_, pcpp::LinkLayerType::LINKTYPE_NULL);
-
-    do
-    {
-      unsigned long remaining_time_to_wait_ms = 0;
-      if (wait_forever)
-      {
-        remaining_time_to_wait_ms = INFINITE;
-      }
-      else
-      {
-        auto now = std::chrono::steady_clock::now();
-        if (now < wait_until)
-        {
-          remaining_time_to_wait_ms = static_cast<unsigned long>(std::chrono::duration_cast<std::chrono::milliseconds>(wait_until - now).count());
-        }
-      }
-
-      const DWORD wait_result = WaitForMultipleObjects(num_handles, pcap_win32_handles_.data(), static_cast<BOOL>(false), remaining_time_to_wait_ms);
-
-      if ((wait_result >= WAIT_OBJECT_0) && wait_result <= (WAIT_OBJECT_0 + num_handles - 1))
-      {
-        const int dev_index = (wait_result - WAIT_OBJECT_0);
-
-        {
-          // Lock the callback lock. While the callback is running, we cannot close the pcap handle, as that may invalidate the data pointer.
-          const std::lock_guard<std::mutex> pcap_devices_callback__lock(pcap_devices_callback_mutex_);
-
-          if (pcap_devices_closed_)
-          {
-            // TODO: Return an error
-            return {};
-          }
-
-          callback_args.link_type_     = static_cast<pcpp::LinkLayerType>(pcap_datalink(pcap_devices_[dev_index].pcap_handle_));
-          callback_args.ip_reassembly_ = pcap_devices_ip_reassembly_[dev_index].get();
-
-          pcap_dispatch(pcap_devices_[dev_index].pcap_handle_, 1, UdpcapSocketPrivate::PacketHandlerRawPtr, reinterpret_cast<u_char*>(&callback_args));
-        }
-
-        if (callback_args.success_)
-        {
-          // Only return datagram if we successfully received a packet. Otherwise, we will continue receiving data, if there is time left.
-          return callback_args.bytes_copied_;
-        }
-      }
-      else if ((wait_result >= WAIT_ABANDONED_0) && wait_result <= (WAIT_ABANDONED_0 + num_handles - 1))
-      {
-        LOG_DEBUG("Receive error: WAIT_ABANDONED");
-      }
-      else if (wait_result == WAIT_TIMEOUT)
-      {
-        // LOG_DEBUG("Receive error: WAIT_TIMEOUT");
-      }
-      else if (wait_result == WAIT_FAILED)
-      {
-        LOG_DEBUG("Receive error: WAIT_FAILED: " + std::system_category().message(GetLastError()));
-        // TODO: Check if I can always just return here. This definitively happens when I close the socket, so I MUST return in certain cases. But I don't know if there may be cases when this happens without closing the socket.
-        return {};
-      }
-    } while (wait_forever || (std::chrono::steady_clock::now() < wait_until));
-
-    return 0;
-  }
-
   size_t UdpcapSocketPrivate::receiveDatagram(char*           data
                                             , size_t          max_len
                                             , unsigned long   timeout_ms
@@ -506,14 +290,6 @@ namespace Udpcap
       // Invalid socket, cannot bind => fail!
       LOG_DEBUG("Receive error: Socket is invalid");
       error = Udpcap::Error::NPCAP_NOT_INITIALIZED;
-      return 0;
-    }
-
-    if (!bound_state_)
-    {
-      // Not bound => fail!
-      LOG_DEBUG("Receive error: Socket is not bound");
-      error = Udpcap::Error::NOT_BOUND;
       return 0;
     }
 
@@ -541,6 +317,15 @@ namespace Udpcap
           if (pcap_devices_closed_)
           {
             error = Udpcap::Error::SOCKET_CLOSED;
+            return 0;
+          }
+    
+          // Check if the socket is bound and return an error
+          if (!bound_state_)
+          {
+            // Not bound => fail!
+            LOG_DEBUG("Receive error: Socket is not bound");
+            error = Udpcap::Error::NOT_BOUND;
             return 0;
           }
 
@@ -806,16 +591,17 @@ namespace Udpcap
 
     // Retrieve device list
     std::array<char, PCAP_ERRBUF_SIZE> errbuf{};
-    pcap_if_t* alldevs_rawptr = nullptr;
-    const pcap_if_t_uniqueptr alldevs(&alldevs_rawptr, [](pcap_if_t** p) { pcap_freealldevs(*p); });
+    pcap_if_t* alldevs_ptr = nullptr;
 
-    if (pcap_findalldevs(alldevs.get(), errbuf.data()) == -1)
+    if (pcap_findalldevs(&alldevs_ptr, errbuf.data()) == -1)
     {
       fprintf(stderr, "Error in pcap_findalldevs: %s\n", errbuf.data());
+      if (alldevs_ptr != nullptr)
+        pcap_freealldevs(alldevs_ptr);
       return{};
     }
 
-    for (pcap_if_t* pcap_dev = *alldevs.get(); pcap_dev != nullptr; pcap_dev = pcap_dev->next)
+    for (pcap_if_t* pcap_dev = alldevs_ptr; pcap_dev != nullptr; pcap_dev = pcap_dev->next)
     {
       // A user may have done something bad like assigning an IPv4 address to
       // the loopback adapter. We don't want to open it in that case. In a real-
@@ -835,11 +621,14 @@ namespace Udpcap
           if (device_ipv4_addr->sin_addr.s_addr == ip.toInt())
           {
             // The IPv4 address matches!
+            pcap_freealldevs(alldevs_ptr);
             return std::make_pair(std::string(pcap_dev->name), std::string(pcap_dev->description));
           }
         }
       }
     }
+
+    pcap_freealldevs(alldevs_ptr);
 
     // Nothing found => nullptr
     return{};
@@ -849,20 +638,24 @@ namespace Udpcap
   {
     // Retrieve device list
     std::array<char, PCAP_ERRBUF_SIZE> errbuf{};
-    pcap_if_t* alldevs_rawptr = nullptr;
-    const pcap_if_t_uniqueptr alldevs(&alldevs_rawptr, [](pcap_if_t** p) { pcap_freealldevs(*p); });
+    pcap_if_t* alldevs_ptr = nullptr;
 
-    if (pcap_findalldevs(alldevs.get(), errbuf.data()) == -1)
+    if (pcap_findalldevs(&alldevs_ptr, errbuf.data()) == -1)
     {
       fprintf(stderr, "Error in pcap_findalldevs: %s\n", errbuf.data());
+      if (alldevs_ptr != nullptr)
+        pcap_freealldevs(alldevs_ptr);
       return{};
     }
 
     std::vector<std::pair<std::string, std::string>> alldev_vector;
-    for (pcap_if_t* pcap_dev = *alldevs.get(); pcap_dev != nullptr; pcap_dev = pcap_dev->next)
+    for (pcap_if_t* pcap_dev = alldevs_ptr; pcap_dev != nullptr; pcap_dev = pcap_dev->next)
     {
       alldev_vector.emplace_back(std::string(pcap_dev->name), std::string(pcap_dev->description));
     }
+
+    pcap_freealldevs(alldevs_ptr);
+
     return alldev_vector;
   }
 
@@ -1096,67 +889,6 @@ namespace Udpcap
 
     // Close the socket
     kickstart_socket.close();
-  }
-
-  void UdpcapSocketPrivate::PacketHandlerVector(unsigned char* param, const struct pcap_pkthdr* header, const unsigned char* pkt_data)
-  {
-    std::cerr << "PacketHandlerVector\n";
-    CallbackArgsVector* callback_args = reinterpret_cast<CallbackArgsVector*>(param);
-
-    pcpp::RawPacket       rawPacket(pkt_data, header->caplen, header->ts, false, callback_args->link_type_);
-    const pcpp::Packet    packet(&rawPacket, pcpp::UDP);
-
-    const pcpp::IPv4Layer* ip_layer  = packet.getLayerOfType<pcpp::IPv4Layer>();
-    const pcpp::UdpLayer*  udp_layer = packet.getLayerOfType<pcpp::UdpLayer>();
-
-    if (ip_layer != nullptr)
-    {
-      if (ip_layer->isFragment())
-      {
-        // Handle fragmented IP traffic
-        pcpp::IPReassembly::ReassemblyStatus status(pcpp::IPReassembly::ReassemblyStatus::NON_IP_PACKET);
-
-        // Try to reassemble packet
-        const pcpp::Packet* reassembled_packet = callback_args->ip_reassembly_->processPacket(&rawPacket, status);
-
-        // If we are done reassembling the packet, we return it to the user
-        if (reassembled_packet != nullptr)
-        {
-          const pcpp::Packet re_parsed_packet(reassembled_packet->getRawPacket(), pcpp::UDP);
-
-          const pcpp::IPv4Layer* reassembled_ip_layer  = re_parsed_packet.getLayerOfType<pcpp::IPv4Layer>();
-          const pcpp::UdpLayer*  reassembled_udp_layer = re_parsed_packet.getLayerOfType<pcpp::UdpLayer>();
-
-          if ((reassembled_ip_layer != nullptr) && (reassembled_udp_layer != nullptr))
-            FillCallbackArgsVector(callback_args, reassembled_ip_layer, reassembled_udp_layer);
-
-          delete reassembled_packet; // We need to manually delete the packet pointer
-        }
-      }
-      else if (udp_layer != nullptr)
-      {
-        // Handle normal IP traffic (un-fragmented)
-        FillCallbackArgsVector(callback_args, ip_layer, udp_layer);
-      }
-    }
-  }
-
-  void UdpcapSocketPrivate::FillCallbackArgsVector(CallbackArgsVector* callback_args, const pcpp::IPv4Layer* ip_layer, const pcpp::UdpLayer* udp_layer)
-  {
-    auto dst_port = ntohs(udp_layer->getUdpHeader()->portDst);
-
-    if (dst_port == callback_args->bound_port_)
-    {
-      if (callback_args->source_address_ != nullptr)
-        *callback_args->source_address_ = HostAddress(ip_layer->getSrcIPv4Address().toInt());
-
-      if (callback_args->source_port_ != nullptr)
-        *callback_args->source_port_ = ntohs(udp_layer->getUdpHeader()->portSrc);
-
-      callback_args->destination_vector_->reserve(udp_layer->getLayerPayloadSize());
-      callback_args->destination_vector_->assign(udp_layer->getLayerPayload(), udp_layer->getLayerPayload() + udp_layer->getLayerPayloadSize());
-      callback_args->success_ = true;
-    }
   }
 
   void UdpcapSocketPrivate::PacketHandlerRawPtr(unsigned char* param, const struct pcap_pkthdr* header, const unsigned char* pkt_data)

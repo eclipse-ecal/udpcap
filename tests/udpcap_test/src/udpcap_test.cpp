@@ -78,8 +78,13 @@ TEST(udpcap, RAIIWithSomebodyWaiting)
                               // Check that we didn't receive any bytes
                               ASSERT_EQ(received_bytes, 0);
 
-                              // TODO: check actual error, which should indicate that the socket is closed
                               ASSERT_TRUE(bool(error));
+
+                              // Check the error reason
+                              ASSERT_EQ(error, Udpcap::Error(Udpcap::Error::ErrorCode::SOCKET_CLOSED));
+
+                              // Check that the socket is closed
+                              ASSERT_TRUE(udpcap_socket.isClosed());
 
                             });
 
@@ -187,10 +192,15 @@ TEST(udpcap, MultipleSmallPackages)
 
                                   if (error)
                                   {
-                                    // TODO: Check that actual error reason
-
                                     // Indicates that somebody closed the socket
                                     ASSERT_EQ(received_messages.get(), num_packages_to_send);
+
+                                    // Check the error reason
+                                    ASSERT_EQ(error, Udpcap::Error(Udpcap::Error::ErrorCode::SOCKET_CLOSED));
+
+                                    // Check that the socket is closed
+                                    ASSERT_TRUE(udpcap_socket.isClosed());
+
                                     break;
                                   }
 
@@ -332,6 +342,13 @@ TEST(udpcap, DelayedPackageReceiveMultiplePackages)
                                   {
                                     // Indicates that somebody closed the socket
                                     ASSERT_EQ(received_messages.get(), num_packages_to_send);
+
+                                    // Check the error reason
+                                    ASSERT_EQ(error, Udpcap::Error(Udpcap::Error::ErrorCode::SOCKET_CLOSED));
+
+                                    // Check that the socket is closed
+                                    ASSERT_TRUE(udpcap_socket.isClosed());
+
                                     break;
                                   }
 
@@ -419,7 +436,7 @@ TEST(udpcap, Timeout)
   
     ASSERT_EQ(error, Udpcap::Error::TIMEOUT);
     ASSERT_EQ(received_bytes, 0);
-    ASSERT_GE(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count(), 100);
+    ASSERT_GE(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count(), 100); // TODO: This sometimes fails. Check why!
   }
 
   // Something already is in the socket, so the call must return earlier
@@ -489,16 +506,191 @@ TEST(udpcap, Timeout)
   udpcap_socket.close();
 }
 
+// Test receiving without binding the socket (-> error)
+TEST(udpcap, ReceiveNotBound)
+{
+  // Create a udpcap socket
+    Udpcap::UdpcapSocket udpcap_socket;
+    ASSERT_TRUE(udpcap_socket.isValid());
+    
+    // Initialize variables for the sender's address and port
+    Udpcap::HostAddress sender_address;
+    uint16_t            sender_port(0);
+    
+    // Allocate buffer with max udp datagram size
+    std::vector<char> received_datagram;
+    received_datagram.resize(65536);
+    
+    // Initialize error object
+    Udpcap::Error error = Udpcap::Error::ErrorCode::GENERIC_ERROR;
+    
+    // blocking receive
+    size_t received_bytes = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), &sender_address, &sender_port, error);
+    
+    // Check if the received datagram is valid and contains "Hello World"
+    ASSERT_EQ(received_bytes, 0);
+    ASSERT_TRUE(bool(error));
+    ASSERT_EQ(error, Udpcap::Error(Udpcap::Error::ErrorCode::NOT_BOUND));
+}
+
+// Test the multicast functionality
+TEST(udpcap, MulticastReceive)
+{
+  atomic_signalable<int> received_messages1(0);
+  atomic_signalable<int> received_messages2(0);
+
+  // Create two udpcap sockets
+  Udpcap::UdpcapSocket udpcap_socket1;
+  ASSERT_TRUE(udpcap_socket1.isValid());
+
+  Udpcap::UdpcapSocket udpcap_socket2;
+  ASSERT_TRUE(udpcap_socket2.isValid());
+
+  udpcap_socket1.setMulticastLoopbackEnabled(true);
+  udpcap_socket2.setMulticastLoopbackEnabled(true);
+
+  // Bind the udpcap sockets to all interfaces
+  {
+    bool success = udpcap_socket1.bind(Udpcap::HostAddress::Any(), 14000);
+    ASSERT_TRUE(success);
+  }
+  {
+    bool success = udpcap_socket2.bind(Udpcap::HostAddress::Any(), 14000);
+    ASSERT_TRUE(success);
+  }
+
+  // Join the multicast group 224.0.0.1 on both sockets
+  {
+    bool success = udpcap_socket1.joinMulticastGroup(Udpcap::HostAddress("224.0.0.1"));
+    ASSERT_TRUE(success);
+  }
+  {
+    bool success = udpcap_socket2.joinMulticastGroup(Udpcap::HostAddress("224.0.0.1"));
+    ASSERT_TRUE(success);
+  }
+
+  // Join the multicast group 224.0.0.2 on the second socket
+  {
+    bool success = udpcap_socket2.joinMulticastGroup(Udpcap::HostAddress("224.0.0.2"));
+    ASSERT_TRUE(success);
+  }
+
+  // Create an asio UDP sender socket
+  asio::io_service      io_service;
+  asio::ip::udp::socket asio_socket(io_service, asio::ip::udp::v4());
+
+  // open the socket for multicast sending
+  asio_socket.set_option(asio::ip::multicast::hops(1));
+  asio_socket.set_option(asio::ip::multicast::enable_loopback(true));
+
+
+  // Receive datagrams in a separate thread for Socket1 (checks for 224.0.0.1)
+  std::thread receive_thread1([&udpcap_socket1, &received_messages1]()
+                              {
+                                while (true)
+                                {
+                                  // Initialize variables for the sender's address and port
+                                  Udpcap::HostAddress sender_address;
+                                  uint16_t            sender_port(0);
+    
+                                  Udpcap::Error error = Udpcap::Error::ErrorCode::GENERIC_ERROR;
+    
+                                  std::vector<char> received_datagram;
+                                  received_datagram.resize(65536);
+    
+                                  size_t bytes_received = udpcap_socket1.receiveDatagram(received_datagram.data(), received_datagram.size(), &sender_address, &sender_port, error);
+                                  received_datagram.resize(bytes_received);
+    
+                                  if (error)
+                                  {
+                                    // Indicates that somebody closed the socket
+                                    ASSERT_EQ(received_messages1.get(), 1);
+
+                                    // Check the error reason
+                                    ASSERT_EQ(error, Udpcap::Error(Udpcap::Error::ErrorCode::SOCKET_CLOSED));
+
+                                    // Check that the socket is closed
+                                    ASSERT_TRUE(udpcap_socket1.isClosed());
+
+                                    break;
+                                  }
+    
+                                  // Check if the received datagram is valid and contains "224.0.0.1"
+                                  ASSERT_EQ(std::string(received_datagram.data(), received_datagram.size()), "224.0.0.1");
+                                  received_messages1++;
+                                }
+                              });
+
+  // Receive datagrams in a separate thread for Socket2 (checks for 224.0.0.1 or 224.0.0.2) 
+  std::thread receive_thread2([&udpcap_socket2, &received_messages2]()
+                                {
+                                  while (true)
+                                  {
+                                    // Initialize variables for the sender's address and port
+                                    Udpcap::HostAddress sender_address;
+                                    uint16_t            sender_port(0);
+        
+                                    Udpcap::Error error = Udpcap::Error::ErrorCode::GENERIC_ERROR;
+        
+                                    std::vector<char> received_datagram;
+                                    received_datagram.resize(65536);
+        
+                                    size_t bytes_received = udpcap_socket2.receiveDatagram(received_datagram.data(), received_datagram.size(), &sender_address, &sender_port, error);
+                                    received_datagram.resize(bytes_received);
+        
+                                    if (error)
+                                    {
+                                      // Indicates that somebody closed the socket
+                                      ASSERT_EQ(received_messages2.get(), 2);
+
+                                      // Check the error reason
+                                      ASSERT_EQ(error, Udpcap::Error(Udpcap::Error::ErrorCode::SOCKET_CLOSED));
+
+                                      // Check that the socket is closed
+                                      ASSERT_TRUE(udpcap_socket2.isClosed());
+
+                                      break;
+                                    }
+        
+                                    // Check if the received datagram is valid and contains "224.0.0.1" or "224.0.0.2"
+                                    ASSERT_TRUE(std::string(received_datagram.data(), received_datagram.size()) == "224.0.0.1" 
+                                              || std::string(received_datagram.data(), received_datagram.size()) == "224.0.0.2");
+                                    received_messages2++;
+                                  }
+                                });
+
+  // Send the multicast message to 224.0.0.1
+  {
+    const asio::ip::udp::endpoint endpoint(asio::ip::make_address("224.0.0.1"), 14000);
+    std::string buffer_string = "224.0.0.1";
+    asio_socket.send_to(asio::buffer(buffer_string), endpoint);
+  }
+
+  // Send the multicast message to 224.0.0.2
+  {
+    const asio::ip::udp::endpoint endpoint(asio::ip::make_address("224.0.0.2"), 14000);
+    std::string buffer_string = "224.0.0.2";
+    asio_socket.send_to(asio::buffer(buffer_string), endpoint);
+  }
+
+  // Wait for received_messages1 to be 1 and received_messages2 to be 2
+  received_messages1.wait_for([](int value) { return value >= 1; }, std::chrono::milliseconds(500));
+  received_messages2.wait_for([](int value) { return value >= 2; }, std::chrono::milliseconds(500));
+
+  // Check if the received message counters
+  ASSERT_EQ(received_messages1.get(), 1);
+  ASSERT_EQ(received_messages2.get(), 2);
+
+  // Close the sockets
+  asio_socket.close();
+  udpcap_socket1.close();
+  udpcap_socket2.close();
+
+  // Join the threads
+  receive_thread1.join();
+  receive_thread2.join();
+}
+
 // TODO: Write a test that tests the Source Address and Source Port
-
-// TODO: Test the returned errors of the receiveDatagram function
-
-// TODO: test isclosed function
-
-// TODO: rapidly create and destroy sockets to see if the memory is freed correctly https://stackoverflow.com/questions/29174938/googletest-and-memory-leaks
-
-// TODO: Test Multicast Receive
-
-// TODO: Test with multiple multicast sockets, that each only receive their own multicast group
 
 // TODO: Create many sockets in threads, wait for them and destroy them to see if there are any race conditions that lead to crashes

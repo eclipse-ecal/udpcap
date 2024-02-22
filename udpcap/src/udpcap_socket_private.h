@@ -66,27 +66,6 @@ namespace Udpcap
       std::string  device_name_;
     };
 
-    struct CallbackArgsVector
-    {
-      CallbackArgsVector(std::vector<char>* destination_vector, HostAddress* source_address, uint16_t* source_port, uint16_t bound_port, pcpp::LinkLayerType link_type)
-        : destination_vector_(destination_vector)
-        , source_address_    (source_address)
-        , source_port_       (source_port)
-        , success_           (false)
-        , link_type_         (link_type)
-        , bound_port_        (bound_port)
-        , ip_reassembly_     (nullptr)
-      {}
-      std::vector<char>* const  destination_vector_;
-      HostAddress* const        source_address_;
-      uint16_t* const           source_port_;
-      bool                      success_;
-
-      pcpp::LinkLayerType       link_type_;
-      const uint16_t            bound_port_;
-      Udpcap::IpReassembly*     ip_reassembly_;
-    };
-
     struct CallbackArgsRawPtr
     {
       CallbackArgsRawPtr(char* destination_buffer, size_t destination_buffer_size, HostAddress* source_address, uint16_t* source_port, uint16_t bound_port, pcpp::LinkLayerType link_type)
@@ -142,13 +121,6 @@ namespace Udpcap
     // TODO: Re-implement or remove. This is currently (2024-02-06) implemented faulty.
     bool hasPendingDatagrams() const;
 
-    std::vector<char> receiveDatagram_OLD(HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
-    std::vector<char> receiveDatagram_OLD(unsigned long timeout_ms, HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
-
-    // TODO: cleanup
-    size_t receiveDatagram_OLD(char* data, size_t max_len, HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
-    size_t receiveDatagram_OLD(char* data, size_t max_len, unsigned long timeout_ms, HostAddress* source_address = nullptr, uint16_t* source_port = nullptr);
-
     size_t receiveDatagram(char*            data
                           , size_t          max_len
                           , unsigned long   timeout_ms
@@ -169,9 +141,6 @@ namespace Udpcap
   //// Internal
   //////////////////////////////////////////
   private:
-    // RAII for pcap_if_t*
-    typedef std::unique_ptr<pcap_if_t*, void(*)(pcap_if_t**)> pcap_if_t_uniqueptr;
-
     static std::pair<std::string, std::string> getDeviceByIp(const HostAddress& ip);
     static std::vector<std::pair<std::string, std::string>> getAllDevices();
 
@@ -186,9 +155,6 @@ namespace Udpcap
     void kickstartLoopbackMulticast() const;
 
     // Callbacks
-    static void PacketHandlerVector(unsigned char* param, const struct pcap_pkthdr* header, const unsigned char* pkt_data);
-    static void FillCallbackArgsVector(CallbackArgsVector* callback_args, const pcpp::IPv4Layer* ip_layer, const pcpp::UdpLayer* udp_layer);
-
     static void PacketHandlerRawPtr(unsigned char* param, const struct pcap_pkthdr* header, const unsigned char* pkt_data);
     static void FillCallbackArgsRawPtr(CallbackArgsRawPtr* callback_args, const pcpp::IPv4Layer* ip_layer, const pcpp::UdpLayer* udp_layer);
 

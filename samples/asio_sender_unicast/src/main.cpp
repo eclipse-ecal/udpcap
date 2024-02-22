@@ -33,7 +33,7 @@ int main()
   asio::io_service io_service;
 
   const asio::ip::udp::endpoint endpoint(asio::ip::make_address("127.0.0.1"), 14000);
-  asio::ip::udp::socket         upd_socket(io_service, endpoint.protocol());
+  asio::ip::udp::socket         udp_socket(io_service, endpoint.protocol());
 
   int counter = 0;
   for(;;)
@@ -41,7 +41,7 @@ int main()
     std::string buffer_string = "Hello World " + std::to_string(counter);
 
     std::cout << "Sending data \"" << buffer_string << "\"" << std::endl;
-    upd_socket.send_to(asio::buffer(buffer_string), endpoint);
+    udp_socket.send_to(asio::buffer(buffer_string), endpoint);
     counter++;
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));

@@ -207,29 +207,30 @@ namespace Udpcap
 
     bool TestLoopbackDevice()
     {
-      typedef std::unique_ptr<pcap_if_t*, void(*)(pcap_if_t**)> pcap_if_t_uniqueptr;
-
       std::array<char, PCAP_ERRBUF_SIZE> errbuf{};
       pcap_if_t* alldevs_rawptr = nullptr;
-      const pcap_if_t_uniqueptr alldevs(&alldevs_rawptr, [](pcap_if_t** p) { pcap_freealldevs(*p); });
 
       bool loopback_device_found = false;
 
-      if (pcap_findalldevs(alldevs.get(), errbuf.data()) == -1)
+      if (pcap_findalldevs(&alldevs_rawptr, errbuf.data()) == -1)
       {
         human_readible_error_ = "Error in pcap_findalldevs: " + std::string(errbuf.data());
         fprintf(stderr, "Error in pcap_findalldevs: %s\n", errbuf.data());
+        if (alldevs_rawptr != nullptr)
+          pcap_freealldevs(alldevs_rawptr);
         return false;
       }
 
       // Check if the loopback device is accessible
-      for (pcap_if_t* pcap_dev = *alldevs.get(); pcap_dev != nullptr; pcap_dev = pcap_dev->next)
+      for (pcap_if_t* pcap_dev = alldevs_rawptr; pcap_dev != nullptr; pcap_dev = pcap_dev->next)
       {
         if (IsLoopbackDevice_NoLock(pcap_dev->name))
         {
           loopback_device_found = true;
         }
       }
+
+      pcap_freealldevs(alldevs_rawptr);
 
       // if we didn't find the loopback device, the test has failed
       if (!loopback_device_found)
