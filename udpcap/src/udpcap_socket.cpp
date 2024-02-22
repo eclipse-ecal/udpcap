@@ -47,8 +47,6 @@ namespace Udpcap
 
   bool              UdpcapSocket::setReceiveBufferSize       (int receive_buffer_size)                               { return udpcap_socket_private_->setReceiveBufferSize(receive_buffer_size); }
 
-  bool              UdpcapSocket::hasPendingDatagrams        () const                                                { return udpcap_socket_private_->hasPendingDatagrams(); }
-
   size_t            UdpcapSocket::receiveDatagram(char* data, size_t max_len, long long timeout_ms, HostAddress* source_address, uint16_t* source_port, Udpcap::Error& error) { return udpcap_socket_private_->receiveDatagram(data, max_len, timeout_ms, source_address, source_port, error); }
   size_t            UdpcapSocket::receiveDatagram(char* data, size_t max_len, long long timeout_ms, Udpcap::Error& error)                                                     { return udpcap_socket_private_->receiveDatagram(data, max_len, timeout_ms, nullptr, nullptr, error); }
   size_t            UdpcapSocket::receiveDatagram(char* data, size_t max_len, Udpcap::Error& error)                                                                           { return udpcap_socket_private_->receiveDatagram(data, max_len, -1, nullptr, nullptr, error); }

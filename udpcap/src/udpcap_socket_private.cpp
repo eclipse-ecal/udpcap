@@ -69,11 +69,6 @@ namespace Udpcap
   {
     close();
   }
-  //UdpcapSocketPrivate::~UdpcapSocketPrivate()
-  //{
-  //  // @todo: reinvestigate why it crashes on close. (Maybe check if i have implemented copy / move constructors properly)
-  //  //close();
-  //}
 
   bool UdpcapSocketPrivate::isValid() const
   {
@@ -231,56 +226,6 @@ namespace Udpcap
     return true;
   }
 
-  bool UdpcapSocketPrivate::hasPendingDatagrams() const
-  {
-    if (!is_valid_)
-    {
-      // Invalid socket, cannot bind => fail!
-      LOG_DEBUG("Has Pending Datagrams error: Socket is invalid");
-      return false;
-    }
-
-    if (!bound_state_)
-    {
-      // Not bound => fail!
-      LOG_DEBUG("Has Pending Datagrams error: Socket is not bound");
-      return false;
-    }
-
-    // Lock the lists of open pcap devices in read-mode. We may use the handles, but not modify the lists themselfes.
-    const std::shared_lock<std::shared_mutex> pcap_devices_lists_lock(pcap_devices_lists_mutex_);
-
-    {
-      const std::lock_guard<std::mutex> pcap_callback_lock(pcap_devices_callback_mutex_);
-      if (pcap_devices_closed_)
-      {
-        // No open devices => fail!
-        LOG_DEBUG("Has Pending Datagrams error: Socket has been closed.");
-        return false;
-      }
-    }
-
-    if (pcap_win32_handles_.empty())
-    {
-      // No open devices => fail!
-      LOG_DEBUG("Has Pending Datagrams error: No open devices");
-      return false;
-    }
-
-    // Wait 0 ms for data
-    DWORD num_handles = static_cast<DWORD>(pcap_win32_handles_.size());
-    if (num_handles > MAXIMUM_WAIT_OBJECTS)
-    {
-      LOG_DEBUG("WARNING: Too many open Adapters. " + std::to_string(num_handles) + " adapters are open, only " + std::to_string(MAXIMUM_WAIT_OBJECTS) + " are supported.");
-      num_handles = MAXIMUM_WAIT_OBJECTS;
-    }
-
-    const DWORD wait_result = WaitForMultipleObjects(num_handles, pcap_win32_handles_.data(), static_cast<BOOL>(false), 0);
-
-    // Check if any HADNLE was in signaled state
-    return((wait_result >= WAIT_OBJECT_0) && wait_result <= (WAIT_OBJECT_0 + num_handles - 1));
-  }
-
   size_t UdpcapSocketPrivate::receiveDatagram(char*           data
                                             , size_t          max_len
                                             , long long       timeout_ms
@@ -319,7 +264,7 @@ namespace Udpcap
       // Check for data on pcap devices until we are either out of time or have
       // received a datagaram. A datagram may consist of multiple packaets in
       // case of IP Fragmentation.
-      while (true) // TODO: respect the timeout parameter
+      while (true)
       {
         bool received_any_data = false;
 
@@ -724,7 +669,7 @@ namespace Udpcap
 
     if (receive_buffer_size_ > 0)
     {
-      pcap_set_buffer_size(pcap_handle, receive_buffer_size_); // TODO: the buffer size should probably not be zero by default. Currently (2024-01-31) it is.
+      pcap_set_buffer_size(pcap_handle, receive_buffer_size_);
     }
 
     const int errorcode = pcap_activate(pcap_handle); // TODO : If pcap_activate() fails, the pcap_t * is not closed and freed; it should be closed using pcap_close(3PCAP). 

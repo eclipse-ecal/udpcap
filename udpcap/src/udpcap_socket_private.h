@@ -118,9 +118,6 @@ namespace Udpcap
 
     bool setReceiveBufferSize(int buffer_size);
 
-    // TODO: Re-implement or remove. This is currently (2024-02-06) implemented faulty.
-    bool hasPendingDatagrams() const;
-
     size_t receiveDatagram(char*            data
                           , size_t          max_len
                           , long long       timeout_ms

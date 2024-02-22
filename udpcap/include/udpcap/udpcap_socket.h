@@ -132,11 +132,6 @@ namespace Udpcap
     UDPCAP_EXPORT bool setReceiveBufferSize(int receive_buffer_size);
 
     /**
-     * @brief Returns whether there are datagrams ready to be read
-     */
-    UDPCAP_EXPORT bool hasPendingDatagrams() const;
-
-    /**
      * @brief Blocks for the given time until a packet arives and copies it to the given memory
      *
      * If the socket is not bound, this method will return immediately.
