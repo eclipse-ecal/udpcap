@@ -20,6 +20,7 @@
 #include <udpcap/error.h>
 #include <udpcap/host_address.h>
 #include <udpcap/udpcap_export.h>
+#include <udpcap/udpcap_version.h>
 // IWYU pragma: end_exports
 
 #include <vector>
