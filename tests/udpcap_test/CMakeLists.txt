@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2016 Continental Corporation
+# Copyright (c) 2024 Continental Corporation
 # 
 # This program and the accompanying materials are made available under the
 # terms of the Apache License, Version 2.0 which is available at
@@ -16,35 +16,29 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-project(asio_sender_multicast)
+project(udpcap_test)
 
-find_package(Threads REQUIRED)
-find_package(asio REQUIRED)
+set(CMAKE_FIND_PACKAGE_PREFER_CONFIG  TRUE)
+
+find_package(udpcap REQUIRED)
+find_package(GTest  REQUIRED)
+find_package(asio   REQUIRED)
 
 set(sources
-    src/main.cpp
+    src/atomic_signalable.h
+    src/udpcap_test.cpp
 )
 
 add_executable (${PROJECT_NAME}
     ${sources}
 )
 
-target_link_libraries(${PROJECT_NAME}
-    PRIVATE
-        Threads::Threads
-        $<$<BOOL:${WIN32}>:ws2_32>
-        $<$<BOOL:${WIN32}>:wsock32>
-
-        # Link header-only libs (asio) as described in this workaround:
-        # https://gitlab.kitware.com/cmake/cmake/-/issues/15415#note_633938
-        $<BUILD_INTERFACE:asio::asio>
-)
-
-target_compile_definitions(${PROJECT_NAME}
-    PRIVATE
-        ASIO_STANDALONE
-        ASIO_DISABLE_VISIBILITY
-        _WIN32_WINNT=0x0601
-)
-
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_14)
+
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${sources})
+
+target_link_libraries (${PROJECT_NAME}
+    udpcap::udpcap
+    GTest::gtest_main
+    $<BUILD_INTERFACE:asio::asio>
+)

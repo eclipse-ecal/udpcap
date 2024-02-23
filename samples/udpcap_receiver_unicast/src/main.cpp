@@ -1,21 +1,18 @@
-/* =========================== LICENSE =================================
- *
- * Copyright (C) 2016 - 2022 Continental Corporation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
+/********************************************************************************
+ * Copyright (c) 2016 Continental Corporation
+ * 
+ * This program and the accompanying materials are made available under the
+ * terms of the Apache License, Version 2.0 which is available at
+ * https://www.apache.org/licenses/LICENSE-2.0.
+ * 
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * =========================== LICENSE =================================
- */
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ * 
+ * SPDX-License-Identifier: Apache-2.0
+ ********************************************************************************/
 
 #include <iostream>
 
@@ -58,9 +55,9 @@ int main()
 
   // 3) Receive data from the socket
   // 
-  //    There are 2 receiveDatagram() functions available. One of them returns
-  //    the data as std::vector, the other expects a pointer to pre-allocated
-  //    memory along with the maximum size.
+  //    The receiveDatagram() function is used to receive data from the socket.
+  //    It requires the application to allocate memory for the received data.
+  //    If an error occurs, the error object is set accordingly.
   // 
   //    The socket.receiveDatagram() function is blocking. In this example we
   //    can use the applications' main thread to wait for incoming data.
@@ -74,17 +71,24 @@ int main()
     Udpcap::HostAddress sender_address;
     uint16_t            sender_port(0);
 
-    // Blocking receive a datagram
-    std::vector<char> received_datagram = socket.receiveDatagram(&sender_address, &sender_port);
+    // Allocate memory for the received datagram (with the maximum possible udp datagram size)
+    std::vector<char> received_datagram(65536);
 
-    if (sender_address.isValid())
+    // Initialize error object
+    Udpcap::Error error = Udpcap::Error::OK;
+
+    // Blocking receive a datagram
+    size_t received_bytes = socket.receiveDatagram(received_datagram.data(), received_datagram.size(), &sender_address, &sender_port, error);
+
+    if (error)
     {
-      std::cout << "Received " << received_datagram.size() << " bytes from " << sender_address.toString() << ":" << sender_port << ": " << std::string(received_datagram.data(), received_datagram.size()) << std::endl;
+      std::cerr << "ERROR while receiving data:" << error.ToString() << std::endl;
+      return 1;
     }
-    else
-    {
-      std::cerr << "ERROR: Failed to receive data from Udpcap Socket" << std::endl;
-    }
+
+    // Shrink the received_datagram to the actual size
+    received_datagram.resize(received_bytes);
+    std::cout << "Received " << received_datagram.size() << " bytes from " << sender_address.toString() << ":" << sender_port << ": " << std::string(received_datagram.data(), received_datagram.size()) << std::endl;
   }
 
   return 0;

@@ -35,6 +35,10 @@ option(UDPCAP_BUILD_SAMPLES
        "Build project samples"
        ON)
 
+option(UDPCAP_BUILD_TESTS
+       "Build the udpcap GTests. Requires GTest::GTest to be available."
+       OFF)
+
 option(UDPCAP_THIRDPARTY_ENABLED
        "Enable building against the builtin dependencies"
        ON)
@@ -57,6 +61,12 @@ cmake_dependent_option(UDPCAP_THIRDPARTY_USE_BUILTIN_ASIO
        "UDPCAP_THIRDPARTY_ENABLED"
        OFF)
 
+cmake_dependent_option(UDPCAP_THIRDPARTY_USE_BUILTIN_GTEST
+       "Fetch and build tests against a predefined version of GTest. If disabled, the targets have to be provided externally."
+       ON
+       "UDPCAP_THIRDPARTY_ENABLED AND UDPCAP_BUILD_TESTS"
+       OFF)
+
 # Module path for finding udpcap
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/udpcap/modules)
 
@@ -74,6 +84,12 @@ endif()
 if (UDPCAP_THIRDPARTY_USE_BUILTIN_ASIO)
     include(thirdparty/asio/asio_make_available.cmake)
 endif()
+
+#--- Fetch GTest -------------------------------
+if (UDPCAP_THIRDPARTY_USE_BUILTIN_GTEST)
+    include(thirdparty/GTest/GTest_make_available.cmake)
+endif()
+
 
 #----------------------------------------------
 
@@ -94,6 +110,11 @@ if (UDPCAP_BUILD_SAMPLES)
     add_subdirectory(samples/asio_sender_unicast)
 endif()
 
+# Tests
+if (UDPCAP_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests/udpcap_test)
+endif()
 
 # Make this package available for packing with CPack
 include("${CMAKE_CURRENT_LIST_DIR}/cpack_config.cmake")

@@ -1,38 +1,35 @@
-/* =========================== LICENSE =================================
- *
- * Copyright (C) 2016 - 2022 Continental Corporation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
+/********************************************************************************
+ * Copyright (c) 2016 Continental Corporation
+ * 
+ * This program and the accompanying materials are made available under the
+ * terms of the Apache License, Version 2.0 which is available at
+ * https://www.apache.org/licenses/LICENSE-2.0.
+ * 
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * =========================== LICENSE =================================
- */
-
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ * 
+ * SPDX-License-Identifier: Apache-2.0
+ ********************************************************************************/
 #include "udpcap/npcap_helpers.h"
 
-#include <mutex>
-
-#include <tchar.h>
-#include <iostream>
 #include <algorithm>
-#include <sstream>
 #include <array>
-
-#include <locale>
+#include <cctype>
 #include <codecvt>
+#include <cstdio>
+#include <iostream>
+#include <locale>
+#include <mutex>
+#include <sstream>
+#include <string>
+#include <tchar.h>
 
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
+#include <Windows.h> // IWYU pragma: keep
 
 #include <pcap/pcap.h>
 
@@ -207,29 +204,30 @@ namespace Udpcap
 
     bool TestLoopbackDevice()
     {
-      typedef std::unique_ptr<pcap_if_t*, void(*)(pcap_if_t**)> pcap_if_t_uniqueptr;
-
       std::array<char, PCAP_ERRBUF_SIZE> errbuf{};
       pcap_if_t* alldevs_rawptr = nullptr;
-      const pcap_if_t_uniqueptr alldevs(&alldevs_rawptr, [](pcap_if_t** p) { pcap_freealldevs(*p); });
 
       bool loopback_device_found = false;
 
-      if (pcap_findalldevs(alldevs.get(), errbuf.data()) == -1)
+      if (pcap_findalldevs(&alldevs_rawptr, errbuf.data()) == -1)
       {
         human_readible_error_ = "Error in pcap_findalldevs: " + std::string(errbuf.data());
         fprintf(stderr, "Error in pcap_findalldevs: %s\n", errbuf.data());
+        if (alldevs_rawptr != nullptr)
+          pcap_freealldevs(alldevs_rawptr);
         return false;
       }
 
       // Check if the loopback device is accessible
-      for (pcap_if_t* pcap_dev = *alldevs.get(); pcap_dev != nullptr; pcap_dev = pcap_dev->next)
+      for (pcap_if_t* pcap_dev = alldevs_rawptr; pcap_dev != nullptr; pcap_dev = pcap_dev->next)
       {
         if (IsLoopbackDevice_NoLock(pcap_dev->name))
         {
           loopback_device_found = true;
         }
       }
+
+      pcap_freealldevs(alldevs_rawptr);
 
       // if we didn't find the loopback device, the test has failed
       if (!loopback_device_found)
