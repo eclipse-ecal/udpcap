@@ -71,7 +71,7 @@ generate_export_header(${PROJECT_NAME}
 add_library (udpcap::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
 target_link_libraries(${PROJECT_NAME}
-    PRIVATE #TODO: This used to be private
+    PRIVATE
         npcap::npcap
         pcapplusplus::pcapplusplus
         $<$<BOOL:${WIN32}>:ws2_32>
@@ -129,8 +129,10 @@ endif()
 
 ##################################
 
-include(sourcetree.cmake)
-create_source_tree(${includes} ${sources})
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES 
+    ${includes}
+    ${sources}
+)
 
 ################################################################################
 ### Installation rules

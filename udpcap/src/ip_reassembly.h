@@ -121,7 +121,6 @@ namespace Udpcap
 	  * - If the reassembled packet isn't ready then NULL is returned
 	  */
 	pcpp::Packet* processPacket(pcpp::RawPacket* fragment, pcpp::IPReassembly::ReassemblyStatus& status, pcpp::ProtocolType parse_until = pcpp::UnknownProtocol, pcpp::OsiModelLayer parse_until_layer = pcpp::OsiModelLayerUnknown);
-	// TODO: Implement rawPacket function
 
 	/**
 	  * Get the maximum capacity as determined in the c'tor
