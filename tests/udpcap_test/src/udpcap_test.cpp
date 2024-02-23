@@ -433,7 +433,11 @@ TEST(udpcap, Timeout)
     auto end_time = std::chrono::steady_clock::now();
   
     ASSERT_EQ(error, Udpcap::Error::TIMEOUT);
-    ASSERT_EQ(received_bytes, 0);
+    ASSERT_EQ(received_bytes, 0); 
+
+    // Print the used time in milliseconds to console
+    std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() << std::endl;
+
     ASSERT_GE(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count(), 100); // TODO: This sometimes fails. Check why!
   }
 
@@ -676,8 +680,8 @@ TEST(udpcap, MulticastReceive)
   received_messages2.wait_for([](int value) { return value >= 2; }, std::chrono::milliseconds(500));
 
   // Check if the received message counters
-  ASSERT_EQ(received_messages1.get(), 1);
-  ASSERT_EQ(received_messages2.get(), 2);
+  ASSERT_EQ(received_messages1.get(), 1) << "Make sure, your FIREWALL is DISABLED!!!";
+  ASSERT_EQ(received_messages2.get(), 2) << "Make sure, your FIREWALL is DISABLED!!!";
 
   // Close the sockets
   asio_socket.close();

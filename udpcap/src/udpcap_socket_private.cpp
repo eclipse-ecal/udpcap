@@ -304,11 +304,19 @@ namespace Udpcap
 
             const int pcap_next_packet_errorcode = pcap_next_ex(pcap_dev.pcap_handle_, &packet_header, &packet_data);
 
+            // Possible return values:
+            //  1: Success! We received a packet.
+            //  0: Timeout. As we set the handle to non-blocking mode, this always happens if no packet is available.
+            //  PCAP_ERROR_NOT_ACTIVATED: The pcap handle is not activated. This should never happen, as we only use activated handles.
+            //  PCAP_ERROR: An error occured. Details can be retrieved using pcap_geterr() or printed to the console using pcap_perror().
+
             if (pcap_next_packet_errorcode == 1)
             {
               received_any_data = true;
 
-              // Success!
+              // Success! We received a packet. Call the packet handler, which
+              // also handles IP reassembly and sets the success variable, if we
+              // successfully received an entire UDP datagram.
               PacketHandlerRawPtr(reinterpret_cast<unsigned char*>(&callback_args), packet_header, packet_data);
 
               if (callback_args.success_)
@@ -318,9 +326,31 @@ namespace Udpcap
                 return callback_args.bytes_copied_;
               }
             }
+            else if (pcap_next_packet_errorcode == 0)
+            {
+              // Timeout. No packet available. We will continue receiving data, if there is time left.
+              continue;
+            }
+            else if (pcap_next_packet_errorcode == PCAP_ERROR_NOT_ACTIVATED)
+            {
+              // This should never happen, as we only use activated handles.
+              error = Udpcap::Error(Udpcap::Error::NOT_BOUND, "Internal error: PCAP handle not activated");
+              LOG_DEBUG(error.ToString()); // This should never happen in a proper application
+              return 0;
+            }
+            else if (pcap_next_packet_errorcode == PCAP_ERROR)
+            {
+              // An error occured. Details can be retrieved using pcap_geterr() or printed to the console using pcap_perror().
+              error = Udpcap::Error(Udpcap::Error::GENERIC_ERROR, pcap_geterr(pcap_dev.pcap_handle_));
+              LOG_DEBUG(error.ToString());
+              return 0;
+            }
             else
             {
-              // TODO: Handle errors coming from pcap.
+              // This should never happen according to the documentation.
+              error = Udpcap::Error(Udpcap::Error::GENERIC_ERROR, "Internal error: Unknown error code " + std::to_string(pcap_next_packet_errorcode));
+              LOG_DEBUG(error.ToString()); // This should never happen in a proper application
+              return 0;
             }
           }
         }
@@ -672,7 +702,7 @@ namespace Udpcap
       pcap_set_buffer_size(pcap_handle, receive_buffer_size_);
     }
 
-    const int errorcode = pcap_activate(pcap_handle); // TODO : If pcap_activate() fails, the pcap_t * is not closed and freed; it should be closed using pcap_close(3PCAP). 
+    const int errorcode = pcap_activate(pcap_handle);
     switch (errorcode)
     {
     case 0:
@@ -685,24 +715,31 @@ namespace Udpcap
       break;
     case PCAP_ERROR_ACTIVATED:
       fprintf(stderr, "%s", ("UdpcapSocket ERROR: Device " + device_name + " already activated").c_str());
+      pcap_close(pcap_handle);
       return false;
     case PCAP_ERROR_NO_SUCH_DEVICE:
       pcap_perror(pcap_handle, ("UdpcapSocket ERROR: Device " + device_name + " does not exist").c_str());
+      pcap_close(pcap_handle);
       return false;
     case PCAP_ERROR_PERM_DENIED:
       pcap_perror(pcap_handle, ("UdpcapSocket ERROR: Device " + device_name + ": Permissoin denied").c_str());
+      pcap_close(pcap_handle);
       return false;
     case PCAP_ERROR_RFMON_NOTSUP:
       fprintf(stderr, "%s", ("UdpcapSocket ERROR: Device " + device_name + ": Does not support monitoring").c_str());
+      pcap_close(pcap_handle);
       return false;
     case PCAP_ERROR_IFACE_NOT_UP:
       fprintf(stderr, "%s", ("UdpcapSocket ERROR: Device " + device_name + ": Interface is down").c_str());
+      pcap_close(pcap_handle);
       return false;
     case PCAP_ERROR:
       pcap_perror(pcap_handle, ("UdpcapSocket ERROR: Device " + device_name).c_str());
+      pcap_close(pcap_handle);
       return false;
     default:
       fprintf(stderr, "%s", ("UdpcapSocket ERROR: Device " + device_name + ": Unknown error").c_str());
+      pcap_close(pcap_handle);
       return false;
     }
 
