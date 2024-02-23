@@ -404,7 +404,7 @@ namespace Udpcap
           }
           else if (wait_result == WAIT_TIMEOUT)
           {
-            // LOG_DEBUG("Receive error: WAIT_TIMEOUT");
+            //LOG_DEBUG("Receive error: WAIT_TIMEOUT");
             error = Udpcap::Error::TIMEOUT;
             return 0;
           }
@@ -457,7 +457,7 @@ namespace Udpcap
     multicast_groups_.emplace(group_address);
 
     // Update the capture filters, so the devices will capture the multicast traffic
-    updateAllCaptureFilters(); // TODO: I probably need to protect the pcap_devices_ list with a mutex here
+    updateAllCaptureFilters();
 
     if (multicast_loopback_enabled_)
     {
@@ -493,7 +493,7 @@ namespace Udpcap
     multicast_groups_.erase(group_it);
 
     // Update all capture filtes
-    updateAllCaptureFilters();  // TODO: I probably need to protect the pcap_devices_ list with a mutex here
+    updateAllCaptureFilters();
 
     return true;
   }
@@ -514,7 +514,7 @@ namespace Udpcap
       kickstartLoopbackMulticast();
     }
 
-    updateAllCaptureFilters(); // TODO: I probably need to protect the pcap_devices_ list with a mutex here
+    updateAllCaptureFilters();
   }
 
   bool UdpcapSocketPrivate::isMulticastLoopbackEnabled() const
@@ -524,9 +524,6 @@ namespace Udpcap
 
   void UdpcapSocketPrivate::close()
   {
-    // TODO: make close thread safe, so one thread can wait for data while another thread closes the socket
-    // TODO: 2024-01-30: Check if this now is actually thread safe
-
     {
       // Lock the lists of open pcap devices in read-mode. We may use the handles,
       // but not modify the lists themselfes. This is in order to assure that the
@@ -537,8 +534,8 @@ namespace Udpcap
       {
         // Lock the callback lock. While the callback is running, we cannot close
         // the pcap handle, as that may invalidate the data pointer.
-        const std::lock_guard<std::mutex> pcap_callback_lock(pcap_devices_callback_mutex_);
-        pcap_devices_closed_ = true; //todo: must i protect this variable with the lists lock or the callback lock
+        const std::lock_guard<std::mutex> pcap_devices_callback_lock(pcap_devices_callback_mutex_);
+        pcap_devices_closed_ = true;
         for (auto& pcap_dev : pcap_devices_)
         {
           LOG_DEBUG(std::string("Closing ") + pcap_dev.device_name_);

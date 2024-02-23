@@ -62,6 +62,11 @@ namespace Udpcap
    *      MulticastLoopbackEnabled=true and joining a multicast group, this
    *      implementation will receive loopback multicast traffic. Winsocks would
    *      not do that (It's not clear to me why).
+   * 
+   * Thread safety:
+   *    - There must only be 1 thread calling receiveDatagram() at the same time
+   *    - It is safe to call close() while another thread is calling receiveDatagram()
+   *    - Other modifications to the socket must not be made while another thread is calling receiveDatagram()
    */
   class UdpcapSocket
   {
@@ -136,8 +141,19 @@ namespace Udpcap
      * the according information from the packet. If the given time elapses
      * before a datagram was available, no data is copied and 0 is returned.
      * 
-     * TODO: Document which error occurs in which case
-     *
+     * Possible errors:
+     *   OK                     if no error occured
+     *   NPCAP_NOT_INITIALIZED  if npcap has not been initialized
+     *   NOT_BOUND              if the socket hasn't been bound, yet
+     *   SOCKET_CLOSED          if the socket has been closed by the user
+     *   TIMEOUT                if the given timeout has elapsed and no datagram was available
+     *   GNERIC_ERROR           in cases of internal libpcap errors
+     * 
+     * Thread safety:
+     *   - This method must not be called from multiple threads at the same time
+     *   - While one thread is calling this method, another thread may call close()
+     *   - While one thread is calling this method, no modifications must be made to the socket (except close())
+     * 
      * @param data           [out]: The destination memory
      * @param max_len        [in]:  The maximum bytes available at the destination
      * @param timeout_ms     [in]:  Maximum time to wait for a datagram in ms. If -1, the method will block until a datagram is available
@@ -154,18 +170,15 @@ namespace Udpcap
                                         , uint16_t*       source_port
                                         , Udpcap::Error&  error);
 
-    // TODO: Copy documentation here
     UDPCAP_EXPORT size_t receiveDatagram(char*            data
                                         , size_t          max_len
                                         , long long       timeout_ms
                                         , Udpcap::Error&  error);
 
-    // TODO: Copy documentation here
     UDPCAP_EXPORT size_t receiveDatagram(char*            data
                                         , size_t          max_len
                                         , Udpcap::Error&  error);
 
-    // TODO: Copy documentation here
     UDPCAP_EXPORT size_t receiveDatagram(char*            data
                                         , size_t          max_len
                                         , HostAddress*    source_address
@@ -217,6 +230,9 @@ namespace Udpcap
 
     /**
      * @brief Closes the socket
+     * 
+     * Thread safety:
+     *   - It is safe to call this method while another thread is calling receiveDatagram()
      */
     UDPCAP_EXPORT void close();
 

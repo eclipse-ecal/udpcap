@@ -37,7 +37,7 @@ namespace Udpcap
   /////////////////////////////////////////
   /// Constructor & Destructor
   /////////////////////////////////////////
-  public: // TODO: Document
+  public:
 	/**
 	  * A c'tor for this class.
 	  * 

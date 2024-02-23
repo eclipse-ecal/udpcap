@@ -108,8 +108,15 @@ TEST(udpcap, SimpleReceive)
     ASSERT_TRUE(success);
   }
 
+  // Create an asio UDP sender socket
+  asio::io_service io_service;
+  const asio::ip::udp::endpoint endpoint(asio::ip::make_address("127.0.0.1"), 14000);
+  asio::ip::udp::socket         asio_socket(io_service, endpoint.protocol());
+  asio_socket.connect(endpoint);
+  const auto asio_local_endpoint = asio_socket.local_endpoint();
+
   // Blocking receive a datagram
-  std::thread receive_thread([&udpcap_socket, &received_messages]()
+  std::thread receive_thread([&udpcap_socket, &received_messages, &asio_local_endpoint]()
                               {
                                 // Initialize variables for the sender's address and port
                                 Udpcap::HostAddress sender_address;
@@ -131,14 +138,12 @@ TEST(udpcap, SimpleReceive)
                                 ASSERT_FALSE(received_datagram.empty());
                                 ASSERT_EQ(std::string(received_datagram.data(), received_datagram.size()), "Hello World");
 
+                                // Check if the sender's address and port are correct
+                                ASSERT_EQ(sender_address.toString(), asio_local_endpoint.address().to_string());
+                                ASSERT_EQ(sender_port,               asio_local_endpoint.port());
+
                                 received_messages++;
                               });
-
-  // Create an asio UDP sender socket
-  asio::io_service io_service;
-
-  const asio::ip::udp::endpoint endpoint(asio::ip::make_address("127.0.0.1"), 14000);
-  asio::ip::udp::socket         asio_socket(io_service, endpoint.protocol());
 
   std::string buffer_string = "Hello World";
   asio_socket.send_to(asio::buffer(buffer_string), endpoint);
@@ -173,11 +178,21 @@ TEST(udpcap, MultipleSmallPackages)
     ASSERT_TRUE(success);
   }
 
+  // Create an asio UDP sender socket
+  asio::io_service io_service;
+  const asio::ip::udp::endpoint endpoint(asio::ip::make_address("127.0.0.1"), 14000);
+  asio::ip::udp::socket         asio_socket(io_service, endpoint.protocol());
+  asio_socket.connect(endpoint);
+  const auto asio_local_endpoint = asio_socket.local_endpoint();
+
   // Receive datagrams in a separate thread
-  std::thread receive_thread([&udpcap_socket, &received_messages, num_packages_to_send]()
+  std::thread receive_thread([&udpcap_socket, &received_messages, num_packages_to_send, &asio_local_endpoint]()
                               {
                                 while (true)
                                 {
+                                  // Initialize variables for the sender's address and port
+                                  Udpcap::HostAddress sender_address;
+                                  uint16_t            sender_port(0);
                                   Udpcap::Error error = Udpcap::Error::ErrorCode::GENERIC_ERROR;
 
                                   // Allocate buffer with max udp datagram size
@@ -185,7 +200,7 @@ TEST(udpcap, MultipleSmallPackages)
                                   received_datagram.resize(65536);
 
                                   // blocking receive
-                                  const size_t received_bytes = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), error);
+                                  const size_t received_bytes = udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), &sender_address, &sender_port, error);
 
                                   if (error)
                                   {
@@ -207,15 +222,13 @@ TEST(udpcap, MultipleSmallPackages)
                                   ASSERT_FALSE(received_datagram.empty());
                                   ASSERT_EQ(std::string(received_datagram.data(), received_datagram.size()), "Hello World");
 
+                                  // Check if the sender's address and port are correct
+                                  ASSERT_EQ(sender_address.toString(), asio_local_endpoint.address().to_string());
+                                  ASSERT_EQ(sender_port,               asio_local_endpoint.port());
+
                                   received_messages++;
                                 }
                               });
-
-  // Create an asio UDP sender socket
-  asio::io_service io_service;
-
-  const asio::ip::udp::endpoint endpoint(asio::ip::make_address("127.0.0.1"), 14000);
-  asio::ip::udp::socket         asio_socket(io_service, endpoint.protocol());
 
   std::string buffer_string = "Hello World";
   for (int i = 0; i < num_packages_to_send; i++)
@@ -252,9 +265,10 @@ TEST(udpcap, SimpleReceiveWithBuffer)
 
   // Create an asio UDP sender socket
   asio::io_service io_service;
-
   const asio::ip::udp::endpoint endpoint(asio::ip::make_address("127.0.0.1"), 14000);
   asio::ip::udp::socket         asio_socket(io_service, endpoint.protocol());
+  asio_socket.connect(endpoint);
+  const auto asio_local_endpoint = asio_socket.local_endpoint();
 
   // Send "Hello World" without currently polling the socket
   std::string buffer_string = "Hello World";
@@ -263,15 +277,18 @@ TEST(udpcap, SimpleReceiveWithBuffer)
   std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
   // Receive the datagram
-  std::thread receive_thread([&udpcap_socket, &received_messages]()
+  std::thread receive_thread([&udpcap_socket, &received_messages, &asio_local_endpoint]()
                               {
+                                // Initialize variables for the sender's address and port
                                 Udpcap::Error error = Udpcap::Error::ErrorCode::GENERIC_ERROR;
+                                Udpcap::HostAddress sender_address;
+                                uint16_t            sender_port(0);
 
                                 // Create buffer with max udp datagram size
                                 std::vector<char> received_datagram;
                                 received_datagram.resize(65536);
 
-                                received_datagram.resize(udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), error));
+                                received_datagram.resize(udpcap_socket.receiveDatagram(received_datagram.data(), received_datagram.size(), &sender_address, &sender_port, error));
 
                                 // No error must have occurred
                                 ASSERT_FALSE(bool(error));
@@ -279,6 +296,10 @@ TEST(udpcap, SimpleReceiveWithBuffer)
                                 // Check if the received datagram is valid and contains "Hello World"
                                 ASSERT_FALSE(received_datagram.empty());
                                 ASSERT_EQ(std::string(received_datagram.data(), received_datagram.size()), "Hello World");
+
+                                // Check if the sender's address and port are correct
+                                ASSERT_EQ(sender_address.toString(), asio_local_endpoint.address().to_string());
+                                ASSERT_EQ(sender_port,               asio_local_endpoint.port());
 
                                 received_messages++;
                               });
@@ -318,8 +339,16 @@ TEST(udpcap, DelayedPackageReceiveMultiplePackages)
     ASSERT_TRUE(success);
   }
 
+  // Create an asio UDP sender socket
+  asio::io_service io_service;
+  const asio::ip::udp::endpoint endpoint(asio::ip::make_address("127.0.0.1"), 14000);
+  asio::ip::udp::socket         asio_socket(io_service, endpoint.protocol());
+  asio_socket.connect(endpoint);
+  const auto asio_local_endpoint = asio_socket.local_endpoint();
+
+
   // Receive datagrams in a separate thread
-  std::thread receive_thread([&udpcap_socket, &received_messages, num_packages_to_send, size_per_package, receive_delay]()
+  std::thread receive_thread([&udpcap_socket, &received_messages, num_packages_to_send, size_per_package, receive_delay, &asio_local_endpoint]()
                               {
                                 while (true)
                                 {
@@ -353,19 +382,14 @@ TEST(udpcap, DelayedPackageReceiveMultiplePackages)
                                   ASSERT_EQ(received_datagram.size(), size_per_package);
                                   received_messages++;
 
+                                  // Check the sender endpoint
+                                  ASSERT_EQ(sender_address.toString(), asio_local_endpoint.address().to_string());
+                                  ASSERT_EQ(sender_port,               asio_local_endpoint.port());
+
                                   // Wait a bit, so we force the udpcap socket to buffer the datagrams
                                   std::this_thread::sleep_for(receive_delay);
                                 }
                               });
-
-  // Create an asio UDP sender socket
-  asio::io_service io_service;
-
-  const asio::ip::udp::endpoint endpoint(asio::ip::make_address("127.0.0.1"), 14000);
-  asio::ip::udp::socket         asio_socket(io_service, endpoint.protocol());
-
-  // Capture the start time
-  auto start_time = std::chrono::steady_clock::now();
 
   // Send the buffers
   for (int i = 0; i < num_packages_to_send; i++)
@@ -378,11 +402,6 @@ TEST(udpcap, DelayedPackageReceiveMultiplePackages)
 
   // Check if the received message counter is equal to the sent messages
   ASSERT_EQ(received_messages.get(), num_packages_to_send);
-
-  // Capture the end time
-  auto end_time = std::chrono::steady_clock::now();
-
-  // TODO: check the entire delay
 
   asio_socket.close();
   udpcap_socket.close();
@@ -431,9 +450,6 @@ TEST(udpcap, Timeout)
   
     ASSERT_EQ(error, Udpcap::Error::TIMEOUT);
     ASSERT_EQ(received_bytes, 0); 
-
-    // Print the used time in milliseconds to console
-    std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() << std::endl;
 
     ASSERT_GE(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count(), 100); // TODO: This sometimes fails. Check why!
   }
@@ -582,7 +598,6 @@ TEST(udpcap, MulticastReceive)
   asio_socket.set_option(asio::ip::multicast::hops(1));
   asio_socket.set_option(asio::ip::multicast::enable_loopback(true));
 
-
   // Receive datagrams in a separate thread for Socket1 (checks for 224.0.0.1)
   std::thread receive_thread1([&udpcap_socket1, &received_messages1]()
                               {
@@ -650,7 +665,7 @@ TEST(udpcap, MulticastReceive)
 
                                       break;
                                     }
-        
+
                                     // Check if the received datagram is valid and contains "224.0.0.1" or "224.0.0.2"
                                     ASSERT_TRUE(std::string(received_datagram.data(), received_datagram.size()) == "224.0.0.1" 
                                               || std::string(received_datagram.data(), received_datagram.size()) == "224.0.0.2");
@@ -677,8 +692,8 @@ TEST(udpcap, MulticastReceive)
   received_messages2.wait_for([](int value) { return value >= 2; }, std::chrono::milliseconds(500));
 
   // Check if the received message counters
-  ASSERT_EQ(received_messages1.get(), 1) << "Make sure, your FIREWALL is DISABLED!!!";
-  ASSERT_EQ(received_messages2.get(), 2) << "Make sure, your FIREWALL is DISABLED!!!";
+  ASSERT_EQ(received_messages1.get(), 1) << "Make sure that your FIREWALL is DISABLED!!!";
+  ASSERT_EQ(received_messages2.get(), 2) << "Make sure that your FIREWALL is DISABLED!!!";
 
   // Close the sockets
   asio_socket.close();
@@ -690,6 +705,104 @@ TEST(udpcap, MulticastReceive)
   receive_thread2.join();
 }
 
-// TODO: Write a test that tests the Source Address and Source Port
+TEST(udpcap, ManySockets)
+{
+  constexpr int       num_udpcap_socket   = 100;
+  constexpr char*     ip_address          = "127.0.0.1";
+  constexpr uint16_t  port                = 14000;
 
-// TODO: Create many sockets in threads, wait for them and destroy them to see if there are any race conditions that lead to crashes
+  // Create an asio socket that sends datagrams to the ip address and port
+  asio::io_service      io_service;
+  asio::ip::udp::socket asio_socket(io_service, asio::ip::udp::v4());
+  asio::ip::udp::endpoint endpoint(asio::ip::make_address(ip_address), port);
+  asio_socket.connect(endpoint);
+
+  // Thread that constantly pushes datagrams via the asio socket
+  std::thread send_thread([&asio_socket]()
+                          {
+                            std::string buffer_string = "Hello World";
+                            while(true)
+                            {
+                              asio::error_code ec;
+                              asio_socket.send(asio::buffer(buffer_string), 0, ec);
+                              if (ec)
+                              {
+                                break;
+                              }
+                            }
+                          });
+
+  // Create num_udpcap_socket udpcap sockets
+  std::vector<Udpcap::UdpcapSocket> udpcap_sockets;
+  std::vector<std::thread>          receive_threads;
+
+  // Reserve space for the sockets
+  udpcap_sockets.reserve(num_udpcap_socket);
+
+  for (int i = 0; i < num_udpcap_socket; i++)
+  {
+    udpcap_sockets.emplace_back();
+    ASSERT_TRUE(udpcap_sockets.back().isValid());
+    const bool success = udpcap_sockets.back().bind(Udpcap::HostAddress(ip_address), port);
+    ASSERT_TRUE(success);
+
+    // Create a receive thread that constantly receives datagrams
+    receive_threads.emplace_back([&udpcap_sockets, i]()
+                                  {
+                                    while (true)
+                                    {
+                                      // Initialize variables for the sender's address and port
+                                      Udpcap::HostAddress sender_address;
+                                      uint16_t            sender_port(0);
+                                      Udpcap::Error       error = Udpcap::Error::ErrorCode::GENERIC_ERROR;
+                                      
+                                      // Allocate buffer with max udp datagram size
+                                      std::vector<char> received_datagram;
+                                      received_datagram.resize(65536);
+                                      
+                                      // blocking receive
+                                      const size_t received_bytes = udpcap_sockets[i].receiveDatagram(received_datagram.data(), received_datagram.size(), &sender_address, &sender_port, error);
+                                      received_datagram.resize(received_bytes);
+
+                                      if (error)
+                                      {
+                                        // Indicates that somebody closed the socket
+                                        ASSERT_EQ(error, Udpcap::Error(Udpcap::Error::ErrorCode::SOCKET_CLOSED));
+    
+                                        // Check that the socket is closed
+                                        ASSERT_TRUE(udpcap_sockets[i].isClosed());
+    
+                                        break;
+                                      }
+                                      else
+                                      {
+                                        // Check if the received datagram is valid and contains "Hello World"
+                                        ASSERT_FALSE(received_datagram.empty());
+                                        ASSERT_EQ(std::string(received_datagram.data(), received_datagram.size()), "Hello World");
+                                      }
+                                    }
+                                  });
+  }
+
+  // wait 10ms
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+   
+  // Close the sockets
+  for (auto& udpcap_socket : udpcap_sockets)
+  {
+    udpcap_socket.close();
+  }
+    
+  // Join the threads
+  for (auto& receive_thread : receive_threads)
+  {
+    receive_thread.join();
+  }
+    
+  // Close the asio socket
+  asio_socket.close();
+    
+  // Join the send thread
+  send_thread.join();
+}
