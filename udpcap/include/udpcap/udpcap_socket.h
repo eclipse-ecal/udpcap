@@ -66,7 +66,7 @@ namespace Udpcap
    * 
    * Thread safety:
    *    - There must only be 1 thread calling receiveDatagram() at the same time
-   *    - It is safe to call close() while another thread is calling receiveDatagram()
+   *    - It is safe to call close(), join and leave multicast groups while another thread is calling receiveDatagram()
    *    - Other modifications to the socket must not be made while another thread is calling receiveDatagram()
    */
   class UdpcapSocket
@@ -152,9 +152,13 @@ namespace Udpcap
      * 
      * Thread safety:
      *   - This method must not be called from multiple threads at the same time
-     *   - While one thread is calling this method, another thread may call close()
-     *   - While one thread is calling this method, no modifications must be made to the socket (except close())
-     * 
+     *   - While one thread is calling this method, another thread may call one (and only one) of the following functions:
+     *      - close()
+     *      - joinMulticastGroup()
+     *      - leaveMulticastGroup()
+     *      - setMulticastLoopbackEnabled()
+     *   - While one thread is calling this method, no other modifications must be made to the socket
+     *  
      * @param data           [out]: The destination memory
      * @param max_len        [in]:  The maximum bytes available at the destination
      * @param timeout_ms     [in]:  Maximum time to wait for a datagram in ms. If -1, the method will block until a datagram is available
@@ -195,6 +199,9 @@ namespace Udpcap
      * Joining a multicast group fails, when the Socket is invalid, not bound,
      * the given address is not a multicast address or this Socket has already
      * joined the group.
+     * 
+     * Thread safety:
+     * - This function may be called while another thread is calling receiveDatagram()
      *
      * @param group_address: The multicast group to join
      *
@@ -208,6 +215,9 @@ namespace Udpcap
      * Leaving a multicast group fails, when the Socket is invalid, not bound,
      * the given address is not a multicast address or this Socket has not
      * joined the group, yet.
+     * 
+     * Thread safety:
+     * - This function may be called while another thread is calling receiveDatagram()
      *
      * @param group_address: The multicast group to leave
      *
@@ -219,6 +229,9 @@ namespace Udpcap
      * @brief Sets whether local multicast traffic should be received
      *
      * If not set, the default value is true.
+     * 
+     * Thread safety:
+     * - This function may be called while another thread is calling receiveDatagram()
      *
      * @param enables whether local multicast traffic should be received
      */
@@ -233,7 +246,7 @@ namespace Udpcap
      * @brief Closes the socket
      * 
      * Thread safety:
-     *   - It is safe to call this method while another thread is calling receiveDatagram()
+     * - This function may be called while another thread is calling receiveDatagram()
      */
     UDPCAP_EXPORT void close();
 
