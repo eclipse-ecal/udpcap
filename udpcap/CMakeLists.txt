@@ -52,7 +52,7 @@ set(sources
     src/udpcap_socket_private.h
 )
 
-add_library (${PROJECT_NAME}
+add_library (${PROJECT_NAME} ${UDPCAP_LIBRARY_TYPE}
     ${includes}
     ${sources}
 )
