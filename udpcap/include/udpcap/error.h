@@ -90,6 +90,11 @@ namespace Udpcap
       return message_;
     }
 
+    inline ErrorCode GetErrorCode() const
+    {
+      return error_code_;
+    }
+
   //////////////////////////////////////////
   // Operators
   //////////////////////////////////////////
