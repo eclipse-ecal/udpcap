@@ -1,6 +1,6 @@
 if (NOT DEFINED PCAPPLUSPLUS_ARCHIVE_URL)
-    set(PCAPPLUSPLUS_ARCHIVE_URL "https://github.com/seladb/PcapPlusPlus/releases/download/v22.05/pcapplusplus-22.05-windows-vs2015.zip")
-    set(PCAPPLUSPLUS_ARCHIVE_HASH "MD5=f0c3c289d1350fa5a5755478fef55964")
+    set(PCAPPLUSPLUS_ARCHIVE_URL "https://github.com/seladb/PcapPlusPlus/releases/download/v22.11/pcapplusplus-22.11-windows-vs2015.zip")
+    set(PCAPPLUSPLUS_ARCHIVE_HASH "MD5=d20cc0706c6a246b8c4cfb44ce149ffa")
 endif()
 
 include(FetchContent)
