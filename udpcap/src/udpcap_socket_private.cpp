@@ -109,7 +109,6 @@ namespace Udpcap
       if (!openPcapDevice_nolock(GetLoopbackDeviceName()))
       {
         LOG_DEBUG(std::string("Bind error: Unable to bind to ") + GetLoopbackDeviceName());
-        close();
         return false;
       }
     }
@@ -121,7 +120,6 @@ namespace Udpcap
       if (devices.empty())
       {
         LOG_DEBUG("Bind error: No devices found");
-        close();
         return false;
       }
 
@@ -143,7 +141,6 @@ namespace Udpcap
       if (dev.first.empty())
       {
         LOG_DEBUG("Bind error: No local device with address " + local_address.toString());
-        close();
         return false;
       }
       
@@ -152,7 +149,6 @@ namespace Udpcap
       if (!openPcapDevice_nolock(dev.first))
       {
         LOG_DEBUG(std::string("Bind error: Unable to bind to ") + dev.first);
-        close();
         return false;
       }
 
@@ -162,7 +158,6 @@ namespace Udpcap
       if (!openPcapDevice_nolock(GetLoopbackDeviceName()))
       {
         LOG_DEBUG(std::string("Bind error: Unable to open ") + GetLoopbackDeviceName());
-        close();
         return false;
       }
     }
