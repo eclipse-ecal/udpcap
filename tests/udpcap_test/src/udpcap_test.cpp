@@ -94,6 +94,30 @@ TEST(udpcap, RAIIWithSomebodyWaiting)
   // Delete the socket
 }
 
+// Test the return value of a bind with an invalid address
+TEST(udpcap, BindInvalidAddress)
+{
+  // Create a udpcap socket
+  Udpcap::UdpcapSocket udpcap_socket;
+  ASSERT_TRUE(udpcap_socket.isValid());
+
+  // bind the socket
+  const bool success = udpcap_socket.bind(Udpcap::HostAddress("256.0.0.1"), 14000);
+  ASSERT_FALSE(success);
+}
+
+// Test the return value of a bind with a valid address that however doesn't belong to any network interface
+TEST(udpcap, BindInvalidAddress2)
+{
+  // Create a udpcap socket
+  Udpcap::UdpcapSocket udpcap_socket;
+  ASSERT_TRUE(udpcap_socket.isValid());
+
+  // bind the socket
+  const bool success = udpcap_socket.bind(Udpcap::HostAddress("239.0.0.1"), 14000); // This is a multicast address that cannot be bound to
+  ASSERT_FALSE(success);
+}
+
 // Receive a simple Hello World Message
 TEST(udpcap, SimpleReceive)
 {
