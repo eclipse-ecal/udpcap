@@ -198,8 +198,16 @@ configure_package_config_file(
   INSTALL_DESTINATION ${UDPCAP_INSTALL_CMAKE_DIR}
   PATH_VARS UDPCAP_INSTALL_CMAKE_DIR
 )
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/cmake_/udpcapConfigVersion.cmake"
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY SameMajorVersion
+)
+
 install(
-  FILES "${CMAKE_CURRENT_BINARY_DIR}/cmake_/udpcapConfig.cmake"
+  FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/cmake_/udpcapConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/cmake_/udpcapConfigVersion.cmake"
   DESTINATION ${UDPCAP_INSTALL_CMAKE_DIR}
   COMPONENT udpcap_dev
 )
