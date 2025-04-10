@@ -7,13 +7,10 @@ include(FetchContent)
 FetchContent_Declare(pcapplusplus
     URL      "${PCAPPLUSPLUS_ARCHIVE_URL}"
     URL_HASH "${PCAPPLUSPLUS_ARCHIVE_HASH}"
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND ""
     )
-FetchContent_GetProperties(pcapplusplus)
-if(NOT pcapplusplus_POPULATED)
-    message(STATUS "Fetching Pcap++...")
-    FetchContent_Populate(pcapplusplus)
-endif()
+
+message(STATUS "Fetching Pcap++...")
+FetchContent_MakeAvailable(pcapplusplus)
+
 set(pcapplusplus_ROOT_DIR "${pcapplusplus_SOURCE_DIR}")
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/Modules/)
