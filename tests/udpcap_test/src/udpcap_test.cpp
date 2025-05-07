@@ -133,9 +133,9 @@ TEST(udpcap, SimpleReceive)
   }
 
   // Create an asio UDP sender socket
-  asio::io_service io_service;
+  asio::io_context io_context;
   const asio::ip::udp::endpoint endpoint(asio::ip::make_address("127.0.0.1"), 14000);
-  asio::ip::udp::socket         asio_socket(io_service, endpoint.protocol());
+  asio::ip::udp::socket         asio_socket(io_context, endpoint.protocol());
   asio_socket.connect(endpoint);
   const auto asio_local_endpoint = asio_socket.local_endpoint();
 
@@ -203,9 +203,9 @@ TEST(udpcap, MultipleSmallPackages)
   }
 
   // Create an asio UDP sender socket
-  asio::io_service io_service;
+  asio::io_context io_context;
   const asio::ip::udp::endpoint endpoint(asio::ip::make_address("127.0.0.1"), 14000);
-  asio::ip::udp::socket         asio_socket(io_service, endpoint.protocol());
+  asio::ip::udp::socket         asio_socket(io_context, endpoint.protocol());
   asio_socket.connect(endpoint);
   const auto asio_local_endpoint = asio_socket.local_endpoint();
 
@@ -288,9 +288,9 @@ TEST(udpcap, SimpleReceiveWithBuffer)
   }
 
   // Create an asio UDP sender socket
-  asio::io_service io_service;
+  asio::io_context io_context;
   const asio::ip::udp::endpoint endpoint(asio::ip::make_address("127.0.0.1"), 14000);
-  asio::ip::udp::socket         asio_socket(io_service, endpoint.protocol());
+  asio::ip::udp::socket         asio_socket(io_context, endpoint.protocol());
   asio_socket.connect(endpoint);
   const auto asio_local_endpoint = asio_socket.local_endpoint();
 
@@ -364,9 +364,9 @@ TEST(udpcap, DelayedPackageReceiveMultiplePackages)
   }
 
   // Create an asio UDP sender socket
-  asio::io_service io_service;
+  asio::io_context io_context;
   const asio::ip::udp::endpoint endpoint(asio::ip::make_address("127.0.0.1"), 14000);
-  asio::ip::udp::socket         asio_socket(io_service, endpoint.protocol());
+  asio::ip::udp::socket         asio_socket(io_context, endpoint.protocol());
   asio_socket.connect(endpoint);
   const auto asio_local_endpoint = asio_socket.local_endpoint();
 
@@ -451,9 +451,9 @@ TEST(udpcap, Timeout)
   Udpcap::Error error = Udpcap::Error::ErrorCode::GENERIC_ERROR;
 
   // Intialize an asio socket
-  asio::io_service io_service;
+  asio::io_context io_context;
   const asio::ip::udp::endpoint endpoint(asio::ip::make_address("127.0.0.1"), 14000);
-  asio::ip::udp::socket         asio_socket(io_service, endpoint.protocol());
+  asio::ip::udp::socket         asio_socket(io_context, endpoint.protocol());
   std::string buffer_string = "Hello World";
 
     
@@ -615,8 +615,8 @@ TEST(udpcap, MulticastReceive)
   }
 
   // Create an asio UDP sender socket
-  asio::io_service      io_service;
-  asio::ip::udp::socket asio_socket(io_service, asio::ip::udp::v4());
+  asio::io_context      io_context;
+  asio::ip::udp::socket asio_socket(io_context, asio::ip::udp::v4());
 
   // open the socket for multicast sending
   asio_socket.set_option(asio::ip::multicast::hops(1));
@@ -737,8 +737,8 @@ TEST(udpcap, ManySockets)
   constexpr uint16_t  port                = 14000;
 
   // Create an asio socket that sends datagrams to the ip address and port
-  asio::io_service      io_service;
-  asio::ip::udp::socket asio_socket(io_service, asio::ip::udp::v4());
+  asio::io_context      io_context;
+  asio::ip::udp::socket asio_socket(io_context, asio::ip::udp::v4());
   asio::ip::udp::endpoint endpoint(asio::ip::make_address(ip_address), port);
   asio_socket.connect(endpoint);
 
@@ -842,9 +842,9 @@ TEST(udpcap, ManyMulticastSockets)
   constexpr uint16_t  port                = 14000;
 
   // Create asio sockets to send datagrams to the multicast groups
-  asio::io_service      io_service;
-  asio::ip::udp::socket asio_socket1(io_service, asio::ip::udp::v4());
-  asio::ip::udp::socket asio_socket2(io_service, asio::ip::udp::v4());
+  asio::io_context      io_context;
+  asio::ip::udp::socket asio_socket1(io_context, asio::ip::udp::v4());
+  asio::ip::udp::socket asio_socket2(io_context, asio::ip::udp::v4());
   asio::ip::udp::endpoint endpoint1(asio::ip::make_address(multicast_group_1), port);
   asio::ip::udp::endpoint endpoint2(asio::ip::make_address(multicast_group_2), port);
   asio_socket1.set_option(asio::ip::multicast::hops(1));
