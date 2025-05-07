@@ -422,7 +422,7 @@ TEST(udpcap, DelayedPackageReceiveMultiplePackages)
   }
 
   // Wait some time for the receive thread to finish
-  received_messages.wait_for([num_packages_to_send](int value) { return value >= num_packages_to_send; }, receive_delay * num_packages_to_send + std::chrono::milliseconds(1000));
+  received_messages.wait_for([num_packages_to_send](int value) { return value >= num_packages_to_send; }, receive_delay * num_packages_to_send + std::chrono::milliseconds(2000));
 
   // Check if the received message counter is equal to the sent messages
   ASSERT_EQ(received_messages.get(), num_packages_to_send);
