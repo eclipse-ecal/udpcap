@@ -144,7 +144,7 @@ You can set the following CMake Options to control how Udpcap is supposed to bui
 
     If you chose the **static** udpcap library (-> `.lib`), you need to make the following targets available for CMake as well:
     
-    - `pcapplusplus::pcapplusplus`
+    - `PcapPlusPlus::Pcap++`
     - `npcap::npcap` 
 
     Check out the [Udpcap integration sample](samples/integration_test/CMakeLists.txt) for a suggestion on how to do that. You can find the scripts and modules for fetching and finding Npcap and Pcap++ here:
