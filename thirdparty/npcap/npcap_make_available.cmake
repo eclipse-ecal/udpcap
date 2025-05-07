@@ -1,6 +1,6 @@
 if (NOT DEFINED NPCAP_SDK_ARCHIVE_URL)
-    set(NPCAP_SDK_ARCHIVE_URL  "https://npcap.com/dist/npcap-sdk-1.13.zip")
-    set(NPCAP_SDK_ARCHIVE_HASH "MD5=2067b3975763ddf61d4114d28d9d6c9b")
+    set(NPCAP_SDK_ARCHIVE_URL  "https://npcap.com/dist/npcap-sdk-1.15.zip")
+    set(NPCAP_SDK_ARCHIVE_HASH "MD5=9b89766c22d20b74bf56777821f89fe3")
 endif()
 
 include(FetchContent)
