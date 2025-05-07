@@ -13,5 +13,9 @@ FetchContent_Declare(npcap_sdk
 message(STATUS "Fetching npcap_sdk...")
 FetchContent_MakeAvailable(npcap_sdk)
 
+# Findnpcap (for finding the npcap SDK from within UDPCAP)
 set(npcap_ROOT_DIR "${npcap_sdk_SOURCE_DIR}")
+set(PCAP_ROOT      "${npcap_sdk_SOURCE_DIR}") # Also set the set PCAP_ROOT for the PcapPlusPlus FindPCAP.cmake module
+set(Packet_ROOT    "${npcap_sdk_SOURCE_DIR}") # Also set the set Packet_ROOT for the PcapPlusPlus FindPacket.cmake module
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/Modules/)
+
