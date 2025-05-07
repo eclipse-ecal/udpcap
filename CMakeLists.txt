@@ -16,7 +16,7 @@
 #
 # =========================== LICENSE =================================
 
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.14...4.0)
 
 # Project call
 include("${CMAKE_CURRENT_LIST_DIR}/udpcap/version.cmake")
