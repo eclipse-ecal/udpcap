@@ -1,7 +1,7 @@
 include(FetchContent)
 FetchContent_Declare(asio
     GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
-    GIT_TAG asio-1-24-0
+    GIT_TAG asio-1-34-2
     DOWNLOAD_EXTRACT_TIMESTAMP FALSE
     )
 
