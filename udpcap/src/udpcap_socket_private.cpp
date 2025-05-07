@@ -842,25 +842,71 @@ namespace Udpcap
 
     // create socket
     const asio::ip::udp::endpoint listen_endpoint(asio::ip::make_address("0.0.0.0"), kickstart_port);
-    kickstart_socket.open(listen_endpoint.protocol());
+    {
+      asio::error_code ec;
+      kickstart_socket.open(listen_endpoint.protocol(), ec);
+      if (ec)
+      {
+        LOG_DEBUG("Failed to open kickstart socket: " + ec.message());
+        return;
+      }
+    }
 
     // set socket reuse
-    kickstart_socket.set_option(asio::ip::udp::socket::reuse_address(true));
+    {
+      asio::error_code ec;
+      kickstart_socket.set_option(asio::ip::udp::socket::reuse_address(true), ec);
+      if (ec)
+      {
+        LOG_DEBUG("Failed to set socket reuse of kickstart socket: " + ec.message());
+        return;
+      }
+    }
 
     // bind socket
-    kickstart_socket.bind(listen_endpoint);
+    {
+      asio::error_code ec;
+      kickstart_socket.bind(listen_endpoint, ec);
+      if (ec)
+      {
+        LOG_DEBUG("Failed to bind kickstart socket: " + ec.message());
+        return;
+      }
+    }
 
     // multicast loopback
-    kickstart_socket.set_option(asio::ip::multicast::enable_loopback(true));
+    {
+      asio::error_code ec;
+      kickstart_socket.set_option(asio::ip::multicast::enable_loopback(true), ec);
+      if (ec)
+      {
+        LOG_DEBUG("Failed to set multicast loopback of kickstart socket: " + ec.message());
+        return;
+      }
+    }
 
     // multicast ttl
-    kickstart_socket.set_option(asio::ip::multicast::hops(0));
+    {
+      asio::error_code ec;
+      kickstart_socket.set_option(asio::ip::multicast::hops(0), ec);
+      if (ec)
+      {
+        LOG_DEBUG("Failed to set multicast ttl of kickstart socket: " + ec.message());
+        return;
+      }
+    }
 
     // Join all multicast groups
     for (const auto& multicast_group : multicast_groups_)
     {
       const asio::ip::address asio_mc_group = asio::ip::make_address(multicast_group.toString());
-      kickstart_socket.set_option(asio::ip::multicast::join_group(asio_mc_group));
+
+      asio::error_code ec;
+      kickstart_socket.set_option(asio::ip::multicast::join_group(asio_mc_group), ec);
+      if (ec)
+      {
+        LOG_DEBUG("Failed to join multicast group " + multicast_group.toString() + " with kickstart socket: " + ec.message());
+      }
     }
 
     // Send data to all multicast groups
@@ -869,11 +915,26 @@ namespace Udpcap
       LOG_DEBUG(std::string("Sending loopback kickstart packet to ") + multicast_group.toString() + ":" + std::to_string(kickstart_port));
       const asio::ip::address asio_mc_group = asio::ip::make_address(multicast_group.toString());
       const asio::ip::udp::endpoint send_endpoint(asio_mc_group, kickstart_port);
-      kickstart_socket.send_to(asio::buffer(static_cast<void*>(nullptr), 0), send_endpoint, 0);
+
+      {
+        asio::error_code ec;
+        kickstart_socket.send_to(asio::buffer(static_cast<void*>(nullptr), 0), send_endpoint, 0, ec);
+        if (ec)
+        {
+          LOG_DEBUG("Failed to send kickstart packet to " + multicast_group.toString() + ":" + std::to_string(kickstart_port) + ": " + ec.message());
+        }
+      }
     }
 
     // Close the socket
-    kickstart_socket.close();
+    {
+      asio::error_code ec;
+      kickstart_socket.close();
+      if (ec)
+      {
+        LOG_DEBUG("Failed to close kickstart socket: " + ec.message());
+      }
+    }
   }
 
   void UdpcapSocketPrivate::PacketHandlerRawPtr(unsigned char* param, const struct pcap_pkthdr* header, const unsigned char* pkt_data)

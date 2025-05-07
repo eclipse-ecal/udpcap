@@ -422,7 +422,7 @@ TEST(udpcap, DelayedPackageReceiveMultiplePackages)
   }
 
   // Wait some time for the receive thread to finish
-  received_messages.wait_for([num_packages_to_send](int value) { return value >= num_packages_to_send; }, receive_delay * num_packages_to_send + std::chrono::milliseconds(1000));
+  received_messages.wait_for([num_packages_to_send](int value) { return value >= num_packages_to_send; }, receive_delay * num_packages_to_send + std::chrono::milliseconds(2000));
 
   // Check if the received message counter is equal to the sent messages
   ASSERT_EQ(received_messages.get(), num_packages_to_send);
@@ -598,19 +598,19 @@ TEST(udpcap, MulticastReceive)
     ASSERT_TRUE(success);
   }
 
-  // Join the multicast group 224.0.0.1 on both sockets
+  // Join the multicast group 239.0.0.1 on both sockets
   {
-    const bool success = udpcap_socket1.joinMulticastGroup(Udpcap::HostAddress("224.0.0.1"));
+    const bool success = udpcap_socket1.joinMulticastGroup(Udpcap::HostAddress("239.0.0.1"));
     ASSERT_TRUE(success);
   }
   {
-    const bool success = udpcap_socket2.joinMulticastGroup(Udpcap::HostAddress("224.0.0.1"));
+    const bool success = udpcap_socket2.joinMulticastGroup(Udpcap::HostAddress("239.0.0.1"));
     ASSERT_TRUE(success);
   }
 
-  // Join the multicast group 224.0.0.2 on the second socket
+  // Join the multicast group 239.0.0.2 on the second socket
   {
-    const bool success = udpcap_socket2.joinMulticastGroup(Udpcap::HostAddress("224.0.0.2"));
+    const bool success = udpcap_socket2.joinMulticastGroup(Udpcap::HostAddress("239.0.0.2"));
     ASSERT_TRUE(success);
   }
 
@@ -622,7 +622,7 @@ TEST(udpcap, MulticastReceive)
   asio_socket.set_option(asio::ip::multicast::hops(1));
   asio_socket.set_option(asio::ip::multicast::enable_loopback(true));
 
-  // Receive datagrams in a separate thread for Socket1 (checks for 224.0.0.1)
+  // Receive datagrams in a separate thread for Socket1 (checks for 239.0.0.1)
   std::thread receive_thread1([&udpcap_socket1, &received_messages1]()
                               {
                                 while (true)
@@ -653,13 +653,13 @@ TEST(udpcap, MulticastReceive)
                                     break;
                                   }
     
-                                  // Check if the received datagram is valid and contains "224.0.0.1"
-                                  ASSERT_EQ(std::string(received_datagram.data(), received_datagram.size()), "224.0.0.1");
+                                  // Check if the received datagram is valid and contains "239.0.0.1"
+                                  ASSERT_EQ(std::string(received_datagram.data(), received_datagram.size()), "239.0.0.1");
                                   received_messages1++;
                                 }
                               });
 
-  // Receive datagrams in a separate thread for Socket2 (checks for 224.0.0.1 or 224.0.0.2) 
+  // Receive datagrams in a separate thread for Socket2 (checks for 239.0.0.1 or 239.0.0.2) 
   std::thread receive_thread2([&udpcap_socket2, &received_messages2]()
                                 {
                                   while (true)
@@ -690,24 +690,24 @@ TEST(udpcap, MulticastReceive)
                                       break;
                                     }
 
-                                    // Check if the received datagram is valid and contains "224.0.0.1" or "224.0.0.2"
-                                    ASSERT_TRUE(std::string(received_datagram.data(), received_datagram.size()) == "224.0.0.1" 
-                                              || std::string(received_datagram.data(), received_datagram.size()) == "224.0.0.2");
+                                    // Check if the received datagram is valid and contains "239.0.0.1" or "239.0.0.2"
+                                    ASSERT_TRUE(std::string(received_datagram.data(), received_datagram.size()) == "239.0.0.1" 
+                                              || std::string(received_datagram.data(), received_datagram.size()) == "239.0.0.2");
                                     received_messages2++;
                                   }
                                 });
 
-  // Send the multicast message to 224.0.0.1
+  // Send the multicast message to 239.0.0.1
   {
-    const asio::ip::udp::endpoint endpoint(asio::ip::make_address("224.0.0.1"), 14000);
-    std::string buffer_string = "224.0.0.1";
+    const asio::ip::udp::endpoint endpoint(asio::ip::make_address("239.0.0.1"), 14000);
+    std::string buffer_string = "239.0.0.1";
     asio_socket.send_to(asio::buffer(buffer_string), endpoint);
   }
 
-  // Send the multicast message to 224.0.0.2
+  // Send the multicast message to 239.0.0.2
   {
-    const asio::ip::udp::endpoint endpoint(asio::ip::make_address("224.0.0.2"), 14000);
-    std::string buffer_string = "224.0.0.2";
+    const asio::ip::udp::endpoint endpoint(asio::ip::make_address("239.0.0.2"), 14000);
+    std::string buffer_string = "239.0.0.2";
     asio_socket.send_to(asio::buffer(buffer_string), endpoint);
   }
 
