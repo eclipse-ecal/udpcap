@@ -2,6 +2,6 @@
 
 include(CMakeFindDependencyMacro)
 find_dependency(npcap)
-find_dependency(pcapplusplus)
+find_dependency(PcapPlusPlus)
 
 INCLUDE("${CMAKE_CURRENT_LIST_DIR}/udpcapTargets.cmake")

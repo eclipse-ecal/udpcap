@@ -26,7 +26,7 @@ set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
 find_package(npcap        REQUIRED)
-find_package(pcapplusplus REQUIRED)
+find_package(PcapPlusPlus REQUIRED)
 find_package(asio         REQUIRED)
 
 # Include GenerateExportHeader that will create export macros for us
@@ -69,9 +69,11 @@ generate_export_header(${PROJECT_NAME}
 add_library (udpcap::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
 target_link_libraries(${PROJECT_NAME}
+    PUBLIC
+        delayimp  # ecaludp delay loads wpcap.dll and Ninja does not implicitly link delayimp.lib
     PRIVATE
         npcap::npcap
-        pcapplusplus::pcapplusplus
+        PcapPlusPlus::Pcap++
         $<$<BOOL:${WIN32}>:ws2_32>
         $<$<BOOL:${WIN32}>:wsock32>
 
@@ -135,80 +137,80 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES
 ################################################################################
 ### Installation rules
 ################################################################################
+if (UDPCAP_INSTALL)
+  set(UDPCAP_INSTALL_CMAKE_DIR "lib/cmake/udpcap")
 
-set(UDPCAP_INSTALL_CMAKE_DIR "lib/cmake/udpcap")
+  # Install Runtime & Libs
+  install(
+    TARGETS ${PROJECT_NAME}
+    EXPORT udpcapTargets
+    
+    RUNTIME
+      DESTINATION "bin"
+      COMPONENT udpcap_runtime
 
-# Install Runtime & Libs
-install(
-  TARGETS ${PROJECT_NAME}
-  EXPORT udpcapTargets
-  
-  RUNTIME
-    DESTINATION "bin"
-    COMPONENT udpcap_runtime
+    LIBRARY
+      DESTINATION "lib"
+      COMPONENT udpcap_runtime
 
-  LIBRARY
-    DESTINATION "lib"
-    COMPONENT udpcap_runtime
+    ARCHIVE
+      DESTINATION "lib"
+      COMPONENT udpcap_dev
+  )
 
-  ARCHIVE
-    DESTINATION "lib"
+  # Install public header files (-> dev package)
+  install(
+    DIRECTORY "include/udpcap"
+    DESTINATION "include"
     COMPONENT udpcap_dev
-)
+    FILES_MATCHING PATTERN "*.h"
+  )
 
-# Install public header files (-> dev package)
-install(
-  DIRECTORY "include/udpcap"
-  DESTINATION "include"
-  COMPONENT udpcap_dev
-  FILES_MATCHING PATTERN "*.h"
-)
+  # Install the auto-generated header with the export macros (-> dev package)
+  install(
+    DIRECTORY "${PROJECT_BINARY_DIR}/include/udpcap"
+    DESTINATION "include"
+    COMPONENT udpcap_dev
+    FILES_MATCHING PATTERN "*.h"
+  )
 
-# Install the auto-generated header with the export macros (-> dev package)
-install(
-  DIRECTORY "${PROJECT_BINARY_DIR}/include/udpcap"
-  DESTINATION "include"
-  COMPONENT udpcap_dev
-  FILES_MATCHING PATTERN "*.h"
-)
+  # Install Target.cmake file (-> dev packag)
+  install(
+    EXPORT udpcapTargets 
+    FILE udpcapTargets.cmake 
+    DESTINATION ${UDPCAP_INSTALL_CMAKE_DIR}
+    NAMESPACE udpcap::
+    COMPONENT udpcap_dev
+  )
 
-# Install Target.cmake file (-> dev packag)
-install(
-  EXPORT udpcapTargets 
-  FILE udpcapTargets.cmake 
-  DESTINATION ${UDPCAP_INSTALL_CMAKE_DIR}
-  NAMESPACE udpcap::
-  COMPONENT udpcap_dev
-)
+  # Create and install Config.cmake file (-> dev package)
 
-# Create and install Config.cmake file (-> dev package)
+  include(CMakePackageConfigHelpers)
 
-include(CMakePackageConfigHelpers)
+  get_target_property(target_type ${PROJECT_NAME} TYPE)
+  if (target_type STREQUAL STATIC_LIBRARY)
+    set(CONFIG_INPUT_FILENAME "udpcapConfig-static.cmake.in")
+  else()
+    set(CONFIG_INPUT_FILENAME "udpcapConfig-shared.cmake.in")
+  endif()
 
-get_target_property(target_type ${PROJECT_NAME} TYPE)
-if (target_type STREQUAL STATIC_LIBRARY)
-  set(CONFIG_INPUT_FILENAME "udpcapConfig-static.cmake.in")
-else()
-  set(CONFIG_INPUT_FILENAME "udpcapConfig-shared.cmake.in")
-endif()
-
-configure_package_config_file(
-  "cmake/${CONFIG_INPUT_FILENAME}"
-  "${CMAKE_CURRENT_BINARY_DIR}/cmake_/udpcapConfig.cmake"
-  INSTALL_DESTINATION ${UDPCAP_INSTALL_CMAKE_DIR}
-  PATH_VARS UDPCAP_INSTALL_CMAKE_DIR
-)
-write_basic_package_version_file(
-  "${CMAKE_CURRENT_BINARY_DIR}/cmake_/udpcapConfigVersion.cmake"
-  VERSION ${PROJECT_VERSION}
-  COMPATIBILITY SameMajorVersion
-)
-
-install(
-  FILES
+  configure_package_config_file(
+    "cmake/${CONFIG_INPUT_FILENAME}"
     "${CMAKE_CURRENT_BINARY_DIR}/cmake_/udpcapConfig.cmake"
+    INSTALL_DESTINATION ${UDPCAP_INSTALL_CMAKE_DIR}
+    PATH_VARS UDPCAP_INSTALL_CMAKE_DIR
+  )
+  write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/cmake_/udpcapConfigVersion.cmake"
-  DESTINATION ${UDPCAP_INSTALL_CMAKE_DIR}
-  COMPONENT udpcap_dev
-)
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+  )
 
+  install(
+    FILES
+      "${CMAKE_CURRENT_BINARY_DIR}/cmake_/udpcapConfig.cmake"
+      "${CMAKE_CURRENT_BINARY_DIR}/cmake_/udpcapConfigVersion.cmake"
+    DESTINATION ${UDPCAP_INSTALL_CMAKE_DIR}
+    COMPONENT udpcap_dev
+  )
+endif()

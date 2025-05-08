@@ -5,17 +5,12 @@ FetchContent_Declare(GTest
     DOWNLOAD_EXTRACT_TIMESTAMP FALSE
     )
 
+set(INSTALL_GTEST OFF) # Enable installation of googletest. (Projects embedding googletest may want to turn this OFF.)
+set(BUILD_GMOCK   OFF) # Builds the googlemock subproject
+
 message(STATUS "Fetching GTest...")
 FetchContent_MakeAvailable(GTest)
 
-set(GTest_ROOT_DIR "${gtest_SOURCE_DIR}")
-
-# Googletest automatically forces MT instead of MD if we do not set this option.
-if(MSVC)
-    set(gtest_force_shared_crt ON CACHE BOOL "My option" FORCE)
-    set(BUILD_GMOCK OFF CACHE BOOL "My option" FORCE)
-    set(INSTALL_GTEST OFF CACHE BOOL "My option" FORCE)
-endif()
 
 # Prepend googletest-module/FindGTest.cmake to Module Path
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/Modules/")

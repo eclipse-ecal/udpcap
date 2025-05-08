@@ -28,6 +28,11 @@ file(TO_CMAKE_PATH "${CMAKE_PREFIX_PATH}" CMAKE_PREFIX_PATH)
 message(STATUS "Module Path: ${CMAKE_MODULE_PATH}")
 message(STATUS "Prefix Path: ${CMAKE_PREFIX_PATH}")
 
+# Set Debug postfix
+set(CMAKE_DEBUG_POSTFIX            d)
+set(CMAKE_MINSIZEREL_POSTFIX       minsize)
+set(CMAKE_RELWITHDEBINFO_POSTFIX   reldbg)
+
 # CMake Options
 include (CMakeDependentOption)
 
@@ -38,6 +43,10 @@ option(UDPCAP_BUILD_SAMPLES
 option(UDPCAP_BUILD_TESTS
        "Build the udpcap GTests. Requires GTest::GTest to be available."
        OFF)
+
+option(UDPCAP_INSTALL
+       "Install udpcap library and headers"
+       ON)
 
 option(UDPCAP_THIRDPARTY_ENABLED
        "Enable building against the builtin dependencies"
@@ -90,13 +99,7 @@ if (UDPCAP_THIRDPARTY_USE_BUILTIN_GTEST)
     include(thirdparty/GTest/GTest_make_available.cmake)
 endif()
 
-
 #----------------------------------------------
-
-# Set Debug postfix
-set(CMAKE_DEBUG_POSTFIX            d)
-set(CMAKE_MINSIZEREL_POSTFIX       minsize)
-set(CMAKE_RELWITHDEBINFO_POSTFIX   reldbg)
 
 # Add main udpcap library
 add_subdirectory(udpcap)

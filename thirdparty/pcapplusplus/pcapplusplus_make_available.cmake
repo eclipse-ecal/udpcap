@@ -1,16 +1,17 @@
-if (NOT DEFINED PCAPPLUSPLUS_ARCHIVE_URL)
-    set(PCAPPLUSPLUS_ARCHIVE_URL "https://github.com/seladb/PcapPlusPlus/releases/download/v22.11/pcapplusplus-22.11-windows-vs2015.zip")
-    set(PCAPPLUSPLUS_ARCHIVE_HASH "MD5=d20cc0706c6a246b8c4cfb44ce149ffa")
-endif()
-
 include(FetchContent)
 FetchContent_Declare(pcapplusplus
-    URL      "${PCAPPLUSPLUS_ARCHIVE_URL}"
-    URL_HASH "${PCAPPLUSPLUS_ARCHIVE_HASH}"
+    GIT_REPOSITORY https://github.com/seladb/PcapPlusPlus.git
+    GIT_TAG cb97f6e7d22cbacd6a5ad843356dc6be012fa7e1 # 2025-05-07: The latest release 24.09 is not CMake 4.0 ready, so I am using the latest master, here
+    DOWNLOAD_EXTRACT_TIMESTAMP FALSE
     )
+
+set(PCAPPP_INSTALL ON)
 
 message(STATUS "Fetching Pcap++...")
 FetchContent_MakeAvailable(pcapplusplus)
 
-set(pcapplusplus_ROOT_DIR "${pcapplusplus_SOURCE_DIR}")
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/Modules/)
+if(NOT TARGET PcapPlusPlus::Pcap++)
+    add_library(PcapPlusPlus::Pcap++ ALIAS Pcap++)
+endif()
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/Modules/")
