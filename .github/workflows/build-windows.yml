@@ -77,9 +77,13 @@ jobs:
             # For the shared build, we only need to install the udpcap library and headers.
 
             if ( '${{ matrix.library_type }}' -eq 'static' )
+            {
               cmake --install ${{github.workspace}}/_build --config Release
+            }
             else
+            {
               cmake --install ${{github.workspace}}/_build --config Release --component udpcap_dev --component udpcap_runtime
+            }
             endif
       
     - name: Build (Debug)
@@ -90,9 +94,13 @@ jobs:
             # For the shared build, we only need to install the udpcap library and headers.
 
             if ( '${{ matrix.library_type }}' -eq 'static' )
+            {
               cmake --install ${{github.workspace}}/_build --config Debug
+            }
             else
+            {
               cmake --install ${{github.workspace}}/_build --config Debug --component udpcap_dev --component udpcap_runtime
+            }
             endif
            
     - name: Read Project Version from CMakeCache
