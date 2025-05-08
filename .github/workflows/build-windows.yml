@@ -82,7 +82,8 @@ jobs:
             }
             else
             {
-              cmake --install ${{github.workspace}}/_build --config Release --component udpcap_dev --component udpcap_runtime
+              cmake --install ${{github.workspace}}/_build --config Release --component udpcap_dev 
+              cmake --install ${{github.workspace}}/_build --config Release --component udpcap_runtime
             }
       
     - name: Build (Debug)
@@ -98,7 +99,8 @@ jobs:
             }
             else
             {
-              cmake --install ${{github.workspace}}/_build --config Debug --component udpcap_dev --component udpcap_runtime
+              cmake --install ${{github.workspace}}/_build --config Debug --component udpcap_dev 
+              cmake --install ${{github.workspace}}/_build --config Debug --component udpcap_runtime 
             }
            
     - name: Read Project Version from CMakeCache

@@ -21,14 +21,13 @@ cmake_minimum_required(VERSION 3.13)
 project(integration_test)
 
 ################################################################################
-# Static udpcap -> we need to fetch npcap & pcap++ again
+# Static udpcap -> we need to fetch npcap again
 # 
 # When forking this project and compiling against a static udpcap, you will
 # probably have to copy the scripts to your own directory structure.
 ################################################################################
 
 include("${CMAKE_CURRENT_LIST_DIR}/../../thirdparty/npcap/npcap_make_available.cmake")
-include("${CMAKE_CURRENT_LIST_DIR}/../../thirdparty/pcapplusplus/pcapplusplus_make_available.cmake")
 ################################################################################
 
 set(CMAKE_FIND_PACKAGE_PREFER_CONFIG  TRUE)
