@@ -5,6 +5,8 @@ FetchContent_Declare(pcapplusplus
     DOWNLOAD_EXTRACT_TIMESTAMP FALSE
     )
 
+set(PCAPPP_INSTALL ON)
+
 message(STATUS "Fetching Pcap++...")
 FetchContent_MakeAvailable(pcapplusplus)
 

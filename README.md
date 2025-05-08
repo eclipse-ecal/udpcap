@@ -128,12 +128,14 @@ You can set the following CMake Options to control how Udpcap is supposed to bui
 |----------------------------------------------|----------|-------------|-----------------------------------------------------------------------------------------------------------------|
 | `UDPCAP_BUILD_SAMPLES`                       | `BOOL`   | `ON`        | Build the Udpcap (and asio) samples for sending and receiving dummy data                                        |
 | `UDPCAP_BUILD_TESTS`                         | `BOOL`   | `OFF`       | Build the udpcap GTests. Requires GTest::GTest to be available. |
+| `UDPCAP_INSTALL`                             | `BOOL`   | `ON`        | Install udpcap library and headers |
 | `UDPCAP_THIRDPARTY_ENABLED`                  | `BOOL`   | `ON`        | Activate / Deactivate the usage of integrated dependencies.                                                     |
 | `UDPCAP_THIRDPARTY_USE_BUILTIN_NPCAP`        | `BOOL`   | `ON`        | Fetch and build against an integrated Version of the npcap SDK. <br>Only available if `UDPCAP_THIRDPARTY_ENABLED=ON` |
 | `UDPCAP_THIRDPARTY_USE_BUILTIN_PCAPPLUSPLUS` | `BOOL`   | `ON`        | Fetch and build against an integrated Version of Pcap++. <br>_Only available if `UDPCAP_THIRDPARTY_ENABLED=ON`_        |
 | `UDPCAP_THIRDPARTY_USE_BUILTIN_ASIO`         | `BOOL`   | `ON`        | Fetch and build against an integrated Version of asio. <br>Only available if `UDPCAP_THIRDPARTY_ENABLED=ON`          |
 | `UDPCAP_THIRDPARTY_USE_BUILTIN_GTEST`        | `BOOL`   | `ON`        | Fetch and build tests against a predefined version of GTest. If disabled, the targets have to be provided externally. <br>Only available if `UDPCAP_THIRDPARTY_ENABLED=ON` and `UDPCAP_BUILD_TESTS=ON`|
 | `UDPCAP_LIBRARY_TYPE`                        | `STRING` |             | Controls the library type of Udpcap by injecting the string into the `add_library` call. Can be set to STATIC / SHARED / OBJECT. If set, this will override the regular `BUILD_SHARED_LIBS` CMake option. If not set, CMake will use the default setting, which is controlled by `BUILD_SHARED_LIBS`.                |
+
 # How to integrate Udpcap in your project
 
 **Integrate as binaries**:

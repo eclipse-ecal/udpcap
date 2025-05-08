@@ -39,6 +39,10 @@ option(UDPCAP_BUILD_TESTS
        "Build the udpcap GTests. Requires GTest::GTest to be available."
        OFF)
 
+option(UDPCAP_INSTALL
+       "Install udpcap library and headers"
+       ON)
+
 option(UDPCAP_THIRDPARTY_ENABLED
        "Enable building against the builtin dependencies"
        ON)
