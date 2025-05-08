@@ -60,18 +60,16 @@ jobs:
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      shell: cmd
       run: |
-           cmake -B ${{github.workspace}}/_build ^
-                 -G "Visual Studio 16 2019" ^
-                 -A ${{ matrix.build_arch }} ^
-                 -T ${{ env.VS_TOOLSET }} ^
-                 -DCMAKE_INSTALL_PREFIX=${{env.INSTALL_PREFIX}} ^
-                 -DUDPCAP_LIBRARY_TYPE=${{ env.udpcap_library_type }} ^
+           cmake -B ${{github.workspace}}/_build `
+                 -G "Visual Studio 16 2019" `
+                 -A ${{ matrix.build_arch }} `
+                 -T ${{ env.VS_TOOLSET }} `
+                 -DCMAKE_INSTALL_PREFIX=${{env.INSTALL_PREFIX}} `
+                 -DUDPCAP_LIBRARY_TYPE=${{ env.udpcap_library_type }} `
                  -DBUILD_SHARED_LIBS=${{ env.build_shared_libs }}
 
     - name: Build (Release)
-      shell: cmd
       run: |
             cmake --build ${{github.workspace}}/_build --config Release --parallel
 
@@ -85,7 +83,6 @@ jobs:
             endif
       
     - name: Build (Debug)
-      shell: cmd
       run: |
             cmake --build ${{github.workspace}}/_build --config Debug --parallel
 
@@ -115,15 +112,13 @@ jobs:
     ############################################
 
     - name: CMake integration test
-      shell: cmd
       run: |
-           cmake -B ${{github.workspace}}/samples/integration_test/_build ^
-                 -A ${{ matrix.build_arch }} ^
+           cmake -B ${{github.workspace}}/samples/integration_test/_build `
+                 -A ${{ matrix.build_arch }} `
                  -DCMAKE_PREFIX_PATH=${{github.workspace}}/${{env.INSTALL_PREFIX}}
       working-directory: ${{ github.workspace }}/samples/integration_test
 
     - name: Compile integration test (Release)
-      shell: cmd
       run: cmake --build ${{github.workspace}}/samples/integration_test/_build --config Release
       working-directory: ${{ github.workspace }}/samples/integration_test
 
@@ -137,7 +132,6 @@ jobs:
       working-directory: ${{ github.workspace }}/samples/integration_test/_build/Release
 
     - name: Compile integration test (Debug)
-      shell: cmd
       run: cmake --build ${{github.workspace}}/samples/integration_test/_build --config Debug
       working-directory: ${{ github.workspace }}/samples/integration_test
 
