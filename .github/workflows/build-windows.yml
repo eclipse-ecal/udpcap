@@ -84,7 +84,6 @@ jobs:
             {
               cmake --install ${{github.workspace}}/_build --config Release --component udpcap_dev --component udpcap_runtime
             }
-            endif
       
     - name: Build (Debug)
       run: |
@@ -101,7 +100,6 @@ jobs:
             {
               cmake --install ${{github.workspace}}/_build --config Debug --component udpcap_dev --component udpcap_runtime
             }
-            endif
            
     - name: Read Project Version from CMakeCache
       run: |
