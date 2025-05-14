@@ -1,7 +1,7 @@
 include(FetchContent)
 FetchContent_Declare(pcapplusplus
     GIT_REPOSITORY https://github.com/seladb/PcapPlusPlus.git
-    GIT_TAG cb97f6e7d22cbacd6a5ad843356dc6be012fa7e1 # 2025-05-07: The latest release 24.09 is not CMake 4.0 ready, so I am using the latest master, here
+    GIT_TAG v25.05
     DOWNLOAD_EXTRACT_TIMESTAMP FALSE
     )
 
