@@ -114,7 +114,7 @@ You will need git-for-windows, Visual Studio 2015 or newer and CMake 3.13 or new
     
     - asio (header only)
     - Npcap SDK (as binary `.lib` files)
-    - Pcap++ (as binary `.lib` files)
+    - Pcap++ (soucecode)
 
 3. Open `_build/udpcap.sln` with Visual Studio and compile `udpcap` and the samples
 
