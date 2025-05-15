@@ -5,7 +5,11 @@ FetchContent_Declare(pcapplusplus
     DOWNLOAD_EXTRACT_TIMESTAMP FALSE
     )
 
-set(PCAPPP_INSTALL ON)
+# 2025-05-15: The PCAPPP_INSTALL must be a cache variable, as
+# Pacp++ v25.05 uses CMake 3.12 policies. These old CMake versions
+#prevented setting options from normal variables.
+#https://cmake.org/cmake/help/latest/policy/CMP0077.html
+set(PCAPPP_INSTALL ON CACHE BOOL "" FORCE) 
 
 message(STATUS "Fetching Pcap++...")
 FetchContent_MakeAvailable(pcapplusplus)
